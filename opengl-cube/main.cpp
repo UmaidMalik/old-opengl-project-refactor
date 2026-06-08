@@ -211,6 +211,10 @@ glm::vec3 initialcameraLookAt(0.5f, 1.0f, 0.5f);
 
 float deltaTime;
 
+void updateCameraDirection();
+glm::mat4 createViewMatrix();
+glm::mat4 createProjectionMatrix(int width, int height);
+
 glm::vec3 center(0.0f, 0.0f, 0.0f);
 glm::mat4 identityMatrix = glm::mat4(1.0f);
 
@@ -700,18 +704,15 @@ int main()
 	glBindVertexArray(0);
 
 	// set global matrices for each shader
-	projectionMatrix = glm::perspective(90.0f, 1024.0f / 768.0f, 0.0005f, 500000.0f);
+	//projectionMatrix = glm::perspective(90.0f, 1024.0f / 768.0f, 0.0005f, 500000.0f);
+	projectionMatrix = createProjectionMatrix(1024, 768);
 	texturedShaderProgram.useProgram();
 	texturedShaderProgram.setMat4("projectionMatrix", projectionMatrix);
 	shadowShaderProgram.useProgram();
 	shadowShaderProgram.setMat4("projectionMatrix", projectionMatrix);
 
 
-	viewMatrix = glm::lookAt(
-		camera.position, 
-		camera.position + camera.direction,
-		camera.up
-	);
+	viewMatrix = createViewMatrix();
 	texturedShaderProgram.useProgram();
 	texturedShaderProgram.setMat4("viewMatrix", viewMatrix);
 	shadowShaderProgram.useProgram();
@@ -1097,11 +1098,7 @@ void processInput(GLFWwindow* window, Shader shaderProgram)
 			camera.horizontalAngle += 360;
 		}
 
-		// conversion to radians
-		float theta = glm::radians(camera.horizontalAngle);
-		float phi = glm::radians(camera.verticalAngle);
-
-		camera.direction = glm::vec3(cosf(phi) * cosf(theta), sinf(phi), -cosf(phi) * sinf(theta));
+		updateCameraDirection();
 		glm::vec3 cameraSideVector = glm::cross(camera.direction, glm::vec3(0.0f, 1.0f, 0.0f));
 
 		glm::normalize(cameraSideVector);
@@ -1137,7 +1134,7 @@ void processInput(GLFWwindow* window, Shader shaderProgram)
 		}
 
 
-		viewMatrix = glm::lookAt(camera.position, camera.position + camera.direction, camera.up);
+		viewMatrix = createViewMatrix();
 		shaderProgram.setMat4("viewMatrix", viewMatrix);
 	}
 	
@@ -2696,4 +2693,34 @@ void drawSkybox(Shader shaderProgram, Texture skybox_front, Texture skybox_right
 	glFrontFace(GL_CW);
 
 	shaderProgram.setBool("drawTexture", GL_FALSE);
+}
+
+void updateCameraDirection()
+{
+    camera.direction = glm::vec3(
+        glm::cos(glm::radians(camera.verticalAngle)) *
+            glm::cos(glm::radians(camera.horizontalAngle)),
+        glm::sin(glm::radians(camera.verticalAngle)),
+        glm::cos(glm::radians(camera.verticalAngle)) *
+            glm::sin(glm::radians(camera.horizontalAngle))
+    );
+}
+
+glm::mat4 createViewMatrix()
+{
+    return glm::lookAt(
+        camera.position,
+        camera.position + camera.direction,
+        camera.up
+    );
+}
+
+glm::mat4 createProjectionMatrix(int width, int height)
+{
+	return glm::perspective(
+		90.0f,
+		(float)width / (float)height,
+		0.0005f,
+		500000.0f
+	);
 }
