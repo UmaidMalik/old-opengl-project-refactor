@@ -23,6 +23,11 @@ target_include_directories(opengl_project
         "${CMAKE_CURRENT_SOURCE_DIR}/opengl-cube"
 )
 
+target_compile_definitions(opengl_project
+    PRIVATE
+        PROJECT_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+)
+
 target_link_libraries(opengl_project
     PRIVATE
         glfw

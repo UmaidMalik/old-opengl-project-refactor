@@ -156,7 +156,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
-
+#include "asset_paths.h"
 // include class for the assets
 #include "shader.h"
 #include "texture.h"
@@ -376,95 +376,95 @@ int main()
 	GLFWwindow* window = setupWindow();
 
 	// Compile and link shaders
-	Shader texturedShaderProgram("../assets/shaders/textured_vertex.glsl", "../assets/shaders/textured_fragment.glsl");
-	Shader shadowShaderProgram("../assets/shaders/shadow_vertex.glsl", "../assets/shaders/shadow_fragment.glsl");
+	Shader texturedShaderProgram(ASSET_PATH("shaders/textured_vertex.glsl"), ASSET_PATH("shaders/textured_fragment.glsl"));
+	Shader shadowShaderProgram(ASSET_PATH("shaders/shadow_vertex.glsl"), ASSET_PATH("shaders/shadow_fragment.glsl"));
 
 
 	// Load Textures
 #if defined(PLATFORM_OSX)
-	Texture groundTexture("../assets/textures/tiles.bmp");
-	Texture metalTexture("../assets/textures/metal.jpg");
-	Texture boxTexture("../assets/textures/box.jpg");
+	Texture groundTexture(ASSET_PATH("textures/tiles.bmp"));
+	Texture metalTexture(ASSET_PATH("textures/metal.jpg"));
+	Texture boxTexture(ASSET_PATH("textures/box.jpg"));
 #else 
-	Texture groundTexture("../assets/textures/tiles.bmp");
-	Texture metalTexture("../assets/textures/metal.jpg");
-	Texture boxTexture("../assets/textures/box.jpg");
+	Texture groundTexture(ASSET_PATH("textures/tiles.bmp"));
+	Texture metalTexture(ASSET_PATH("textures/metal.jpg"));
+	Texture boxTexture(ASSET_PATH("textures/box.jpg"));
 
 	// face 1
-	Texture knight_1("../assets/textures/face_1/hollow_knight_art_1.png");
-	Texture knight_2("../assets/textures/face_1/hollow_knight_art_2.png");
-	Texture knight_3("../assets/textures/face_1/hollow_knight_art_3.png");
-	Texture knight_4("../assets/textures/face_1/hollow_knight_art_4.png");
-	Texture knight_5("../assets/textures/face_1/hollow_knight_art_5.png");
-	Texture knight_6("../assets/textures/face_1/hollow_knight_art_6.png");
-	Texture knight_7("../assets/textures/face_1/hollow_knight_art_7.png");
-	Texture knight_8("../assets/textures/face_1/hollow_knight_art_8.png");
-	Texture knight_9("../assets/textures/face_1/hollow_knight_art_9.png");
+	Texture knight_1(ASSET_PATH("textures/face_1/hollow_knight_art_1.png"));
+	Texture knight_2(ASSET_PATH("textures/face_1/hollow_knight_art_2.png"));
+	Texture knight_3(ASSET_PATH("textures/face_1/hollow_knight_art_3.png"));
+	Texture knight_4(ASSET_PATH("textures/face_1/hollow_knight_art_4.png"));
+	Texture knight_5(ASSET_PATH("textures/face_1/hollow_knight_art_5.png"));
+	Texture knight_6(ASSET_PATH("textures/face_1/hollow_knight_art_6.png"));
+	Texture knight_7(ASSET_PATH("textures/face_1/hollow_knight_art_7.png"));
+	Texture knight_8(ASSET_PATH("textures/face_1/hollow_knight_art_8.png"));
+	Texture knight_9(ASSET_PATH("textures/face_1/hollow_knight_art_9.png"));
 
 	// face 2
-	Texture color_1("../assets/textures/face_2/color_1.png");
-	Texture color_2("../assets/textures/face_2/color_2.png");
-	Texture color_3("../assets/textures/face_2/color_3.png");
-	Texture color_4("../assets/textures/face_2/color_4.png");
-	Texture color_5("../assets/textures/face_2/color_5.png");
-	Texture color_6("../assets/textures/face_2/color_6.png");
-	Texture color_7("../assets/textures/face_2/color_7.png");
-	Texture color_8("../assets/textures/face_2/color_8.png");
-	Texture color_9("../assets/textures/face_2/color_9.png");
+	Texture color_1(ASSET_PATH("textures/face_2/color_1.png"));
+	Texture color_2(ASSET_PATH("textures/face_2/color_2.png"));
+	Texture color_3(ASSET_PATH("textures/face_2/color_3.png"));
+	Texture color_4(ASSET_PATH("textures/face_2/color_4.png"));
+	Texture color_5(ASSET_PATH("textures/face_2/color_5.png"));
+	Texture color_6(ASSET_PATH("textures/face_2/color_6.png"));
+	Texture color_7(ASSET_PATH("textures/face_2/color_7.png"));
+	Texture color_8(ASSET_PATH("textures/face_2/color_8.png"));
+	Texture color_9(ASSET_PATH("textures/face_2/color_9.png"));
 
 	// face 3
-	Texture shape_A_1("../assets/textures/face_3/shape_A_1.png");
-	Texture shape_A_2("../assets/textures/face_3/shape_A_2.png");
-	Texture shape_A_3("../assets/textures/face_3/shape_A_3.png");
-	Texture shape_A_4("../assets/textures/face_3/shape_A_4.png");
-	Texture shape_A_5("../assets/textures/face_3/shape_A_5.png");
-	Texture shape_A_6("../assets/textures/face_3/shape_A_6.png");
-	Texture shape_A_7("../assets/textures/face_3/shape_A_7.png");
-	Texture shape_A_8("../assets/textures/face_3/shape_A_8.png");
-	Texture shape_A_9("../assets/textures/face_3/shape_A_9.png");
+	Texture shape_A_1(ASSET_PATH("textures/face_3/shape_A_1.png"));
+	Texture shape_A_2(ASSET_PATH("textures/face_3/shape_A_2.png"));
+	Texture shape_A_3(ASSET_PATH("textures/face_3/shape_A_3.png"));
+	Texture shape_A_4(ASSET_PATH("textures/face_3/shape_A_4.png"));
+	Texture shape_A_5(ASSET_PATH("textures/face_3/shape_A_5.png"));
+	Texture shape_A_6(ASSET_PATH("textures/face_3/shape_A_6.png"));
+	Texture shape_A_7(ASSET_PATH("textures/face_3/shape_A_7.png"));
+	Texture shape_A_8(ASSET_PATH("textures/face_3/shape_A_8.png"));
+	Texture shape_A_9(ASSET_PATH("textures/face_3/shape_A_9.png"));
 
 	// face 4
-	Texture shape_B_1("../assets/textures/face_4/shape_B_1.png");
-	Texture shape_B_2("../assets/textures/face_4/shape_B_2.png");
-	Texture shape_B_3("../assets/textures/face_4/shape_B_3.png");
-	Texture shape_B_4("../assets/textures/face_4/shape_B_4.png");
-	Texture shape_B_5("../assets/textures/face_4/shape_B_5.png");
-	Texture shape_B_6("../assets/textures/face_4/shape_B_6.png");
-	Texture shape_B_7("../assets/textures/face_4/shape_B_7.png");
-	Texture shape_B_8("../assets/textures/face_4/shape_B_8.png");
-	Texture shape_B_9("../assets/textures/face_4/shape_B_9.png");
+	Texture shape_B_1(ASSET_PATH("textures/face_4/shape_B_1.png"));
+	Texture shape_B_2(ASSET_PATH("textures/face_4/shape_B_2.png"));
+	Texture shape_B_3(ASSET_PATH("textures/face_4/shape_B_3.png"));
+	Texture shape_B_4(ASSET_PATH("textures/face_4/shape_B_4.png"));
+	Texture shape_B_5(ASSET_PATH("textures/face_4/shape_B_5.png"));
+	Texture shape_B_6(ASSET_PATH("textures/face_4/shape_B_6.png"));
+	Texture shape_B_7(ASSET_PATH("textures/face_4/shape_B_7.png"));
+	Texture shape_B_8(ASSET_PATH("textures/face_4/shape_B_8.png"));
+	Texture shape_B_9(ASSET_PATH("textures/face_4/shape_B_9.png"));
 
 	// face 5
-	Texture number_0("../assets/textures/face_5/number_0.png");
-	Texture number_1("../assets/textures/face_5/number_1.png");
-	Texture number_2("../assets/textures/face_5/number_2.png");
-	Texture number_3("../assets/textures/face_5/number_3.png");
-	Texture number_4("../assets/textures/face_5/number_4.png");
-	Texture number_5("../assets/textures/face_5/number_5.png");
-	Texture number_6("../assets/textures/face_5/number_6.png");
-	Texture number_7("../assets/textures/face_5/number_7.png");
-	Texture number_8("../assets/textures/face_5/number_8.png");
-	Texture number_9("../assets/textures/face_5/number_9.png");
+	Texture number_0(ASSET_PATH("textures/face_5/number_0.png"));
+	Texture number_1(ASSET_PATH("textures/face_5/number_1.png"));
+	Texture number_2(ASSET_PATH("textures/face_5/number_2.png"));
+	Texture number_3(ASSET_PATH("textures/face_5/number_3.png"));
+	Texture number_4(ASSET_PATH("textures/face_5/number_4.png"));
+	Texture number_5(ASSET_PATH("textures/face_5/number_5.png"));
+	Texture number_6(ASSET_PATH("textures/face_5/number_6.png"));
+	Texture number_7(ASSET_PATH("textures/face_5/number_7.png"));
+	Texture number_8(ASSET_PATH("textures/face_5/number_8.png"));
+	Texture number_9(ASSET_PATH("textures/face_5/number_9.png"));
 
 	// face 6
-	Texture science_1("../assets/textures/face_6/science_1.jpg");
-	Texture science_2("../assets/textures/face_6/science_2.jpg");
-	Texture science_3("../assets/textures/face_6/science_3.jpg");
-	Texture science_4("../assets/textures/face_6/science_4.jpg");
-	Texture science_5("../assets/textures/face_6/science_5.jpg");
-	Texture science_6("../assets/textures/face_6/science_6.jpg");
-	Texture science_7("../assets/textures/face_6/science_7.jpg");
-	Texture science_8("../assets/textures/face_6/science_8.jpg");
-	Texture science_9("../assets/textures/face_6/science_9.jpg");
+	Texture science_1(ASSET_PATH("textures/face_6/science_1.jpg"));
+	Texture science_2(ASSET_PATH("textures/face_6/science_2.jpg"));
+	Texture science_3(ASSET_PATH("textures/face_6/science_3.jpg"));
+	Texture science_4(ASSET_PATH("textures/face_6/science_4.jpg"));
+	Texture science_5(ASSET_PATH("textures/face_6/science_5.jpg"));
+	Texture science_6(ASSET_PATH("textures/face_6/science_6.jpg"));
+	Texture science_7(ASSET_PATH("textures/face_6/science_7.jpg"));
+	Texture science_8(ASSET_PATH("textures/face_6/science_8.jpg"));
+	Texture science_9(ASSET_PATH("textures/face_6/science_9.jpg"));
 
 	
 
-	Texture skybox_front("../assets/textures/skybox/skybox_front.png");
-	Texture skybox_top("../assets/textures/skybox/skybox_top.png");
-	Texture skybox_bottom("../assets/textures/skybox/skybox_bottom.png");
-	Texture skybox_left("../assets/textures/skybox/skybox_left.png");
-	Texture skybox_right("../assets/textures/skybox/skybox_right.png");
-	Texture skybox_back("../assets/textures/skybox/skybox_back.png");
+	Texture skybox_front(ASSET_PATH("textures/skybox/skybox_front.png"));
+	Texture skybox_top(ASSET_PATH("textures/skybox/skybox_top.png"));
+	Texture skybox_bottom(ASSET_PATH("textures/skybox/skybox_bottom.png"));
+	Texture skybox_left(ASSET_PATH("textures/skybox/skybox_left.png"));
+	Texture skybox_right(ASSET_PATH("textures/skybox/skybox_right.png"));
+	Texture skybox_back(ASSET_PATH("textures/skybox/skybox_back.png"));
 
 #endif
 
