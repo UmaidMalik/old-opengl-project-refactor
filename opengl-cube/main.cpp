@@ -160,22 +160,10 @@
 // include class for the assets
 #include "shader.h"
 #include "texture.h"
+#include "camera.h"
 
 using namespace glm;
 
-struct CameraState
-{
-    glm::vec3 position;
-    glm::vec3 direction;
-    glm::vec3 up;
-
-    float horizontalAngle;
-    float verticalAngle;
-
-    float normalSpeed;
-    float fastSpeed;
-    float fieldOfView;
-};
 
 const int numbObjInScene = 5;                           // make sure to update this if you add more models!!!
 
@@ -197,23 +185,10 @@ CameraState camera{
     4.0f,
     90.0f
 };
-/*
-cameraPosition         → camera.position
-cameraLookAt           → camera.direction
-cameraUp               → camera.up
-cameraHorizontalAngle  → camera.horizontalAngle
-cameraVerticalAngle    → camera.verticalAngle
-cameraSpeed            → camera.normalSpeed
-cameraSpeedFast        → camera.fastSpeed
-*/
 
 glm::vec3 initialcameraLookAt(0.5f, 1.0f, 0.5f);
 
 float deltaTime;
-
-void updateCameraDirection();
-glm::mat4 createViewMatrix();
-glm::mat4 createProjectionMatrix(int width, int height);
 
 glm::vec3 center(0.0f, 0.0f, 0.0f);
 glm::mat4 identityMatrix = glm::mat4(1.0f);
@@ -242,8 +217,6 @@ glm::mat4 worldOrientation_Y;
 // used for rotation angle and rotation snap for world orientation set to 15 degrees
 glm::vec3 worldRotation;
 const float worldOrientation_ANGLE = 15.0f;
-
-
 
 double lastMousePosX, lastMousePosY;
 
@@ -712,7 +685,7 @@ int main()
 	shadowShaderProgram.setMat4("projectionMatrix", projectionMatrix);
 
 
-	viewMatrix = createViewMatrix();
+	viewMatrix = createViewMatrix(camera);
 	texturedShaderProgram.useProgram();
 	texturedShaderProgram.setMat4("viewMatrix", viewMatrix);
 	shadowShaderProgram.useProgram();
@@ -1098,7 +1071,7 @@ void processInput(GLFWwindow* window, Shader shaderProgram)
 			camera.horizontalAngle += 360;
 		}
 
-		updateCameraDirection();
+		updateCameraDirection(camera);
 		glm::vec3 cameraSideVector = glm::cross(camera.direction, glm::vec3(0.0f, 1.0f, 0.0f));
 
 		glm::normalize(cameraSideVector);
@@ -1134,7 +1107,7 @@ void processInput(GLFWwindow* window, Shader shaderProgram)
 		}
 
 
-		viewMatrix = createViewMatrix();
+		viewMatrix = createViewMatrix(camera);
 		shaderProgram.setMat4("viewMatrix", viewMatrix);
 	}
 	
@@ -2693,34 +2666,4 @@ void drawSkybox(Shader shaderProgram, Texture skybox_front, Texture skybox_right
 	glFrontFace(GL_CW);
 
 	shaderProgram.setBool("drawTexture", GL_FALSE);
-}
-
-void updateCameraDirection()
-{
-    camera.direction = glm::vec3(
-        glm::cos(glm::radians(camera.verticalAngle)) *
-            glm::cos(glm::radians(camera.horizontalAngle)),
-        glm::sin(glm::radians(camera.verticalAngle)),
-        -glm::cos(glm::radians(camera.verticalAngle)) *
-            glm::sin(glm::radians(camera.horizontalAngle))
-    );
-}
-
-glm::mat4 createViewMatrix()
-{
-    return glm::lookAt(
-        camera.position,
-        camera.position + camera.direction,
-        camera.up
-    );
-}
-
-glm::mat4 createProjectionMatrix(int width, int height)
-{
-	return glm::perspective(
-		90.0f,
-		(float)width / (float)height,
-		0.0005f,
-		500000.0f
-	);
 }

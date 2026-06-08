@@ -17,6 +17,7 @@ add_executable(opengl_project
     "opengl-cube/main.cpp"
     "opengl-cube/shader.cpp"
     "opengl-cube/texture.cpp"
+    "opengl-cube/camera.cpp"
     "includes/glad/glad.c"
 )
 
