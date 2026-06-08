@@ -38,3 +38,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             -Wpedantic
     )
 endif()
+
+add_custom_target(run
+    COMMAND $<TARGET_FILE:opengl_project>
+    DEPENDS opengl_project
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    COMMENT "Running opengl_project"
+)
