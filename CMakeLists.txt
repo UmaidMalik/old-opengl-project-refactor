@@ -15,6 +15,7 @@ find_package(glfw3 3.3 REQUIRED)
 
 add_executable(opengl_project
     "opengl-cube/main.cpp"
+    "opengl-cube/shader.cpp"
     "includes/glad/glad.c"
 )
 
