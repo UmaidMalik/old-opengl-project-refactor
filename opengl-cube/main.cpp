@@ -300,12 +300,10 @@ struct TexturedColoredVertex
 };
 
 // function prototypes
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void framebuffer_size_callback(GLFWwindow*, int width, int height);
 void processInput(GLFWwindow* window, Shader shaderProgram);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-
-
+void scroll_callback(GLFWwindow* window, double, double yoffset);
+void key_callback(GLFWwindow*, int key, int, int action, int);
 
 // models
 int createTexturedCubeVertexArrayObject(TexturedColoredVertex* texturedCubeVertexArray, GLuint size);
@@ -323,7 +321,11 @@ void drawTimer(Shader shaderProgram, unsigned int number_tex_ID[10]);
 void drawSkybox(Shader shaderProgram, Texture skybox_front, Texture skybox_right, Texture skybox_back, Texture skybox_left, Texture skybox_bottom, Texture skybox_top);
 
 
-int createGridlines(int numGridlines, vec3* gridLinesVertices, GLuint size, vec3 lineColor, float sizeOfGrid);
+int createGridlines(
+    int numGridlines,
+    glm::vec3* gridLinesVertices,
+    GLuint size
+);
 void drawGridlines(Shader shaderProgram);
 int createLine(vec3* lineVertices);
 void drawAxisLines(Shader shaderProgram);
@@ -659,7 +661,7 @@ int main()
 
 	// grid lines
 	glm::vec3 gridLines[8 * numGridLines];
-	VAO[4] = createGridlines(numGridLines, gridLines, sizeof(gridLines), vec3(1.0f, 1.0f, 0.0f), 10.0f);
+	VAO[4] = createGridlines(numGridLines, gridLines, sizeof(gridLines));
 
 	
 
@@ -2113,7 +2115,7 @@ void drawGridlines(Shader shaderProgram) {
 	glDrawArrays(GL_LINES, 0, 2 * 2 * numGridLines);
 }
 
-int createGridlines(int numGridlines, vec3 * gridLinesVertices, GLuint size, vec3 lineColor, float sizeOfGrid) {
+int createGridlines(int numGridlines, glm::vec3 * gridLinesVertices, GLuint size) {
 
 	glm::vec3 zLineColor = glm::vec3(0.0f, 1.0f, 1.0f);     // set line color for lines running parallel to z-axis
 	glm::vec3 xLineColor = glm::vec3(0.0f, 1.0f, 1.0f);		// set line color for lines running parallel to x-axis
