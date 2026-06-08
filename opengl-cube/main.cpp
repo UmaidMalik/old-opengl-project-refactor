@@ -2701,7 +2701,7 @@ void updateCameraDirection()
         glm::cos(glm::radians(camera.verticalAngle)) *
             glm::cos(glm::radians(camera.horizontalAngle)),
         glm::sin(glm::radians(camera.verticalAngle)),
-        glm::cos(glm::radians(camera.verticalAngle)) *
+        -glm::cos(glm::radians(camera.verticalAngle)) *
             glm::sin(glm::radians(camera.horizontalAngle))
     );
 }
