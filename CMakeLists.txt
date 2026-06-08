@@ -5,6 +5,7 @@ project(OpenGLUniversityProject
     LANGUAGES C CXX
 )
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -36,11 +37,15 @@ target_link_libraries(opengl_project
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set_source_files_properties(
+        "includes/glad/glad.c"
+        PROPERTIES
+            COMPILE_OPTIONS "-w"
+    )
+
     target_compile_options(opengl_project
         PRIVATE
-            -Wall
-            -Wextra
-            -Wpedantic
+            $<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra;-Wpedantic>
     )
 endif()
 
