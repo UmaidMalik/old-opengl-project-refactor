@@ -16,13 +16,18 @@ find_package(glfw3 3.3 REQUIRED)
 add_executable(opengl_project
     "opengl-cube/main.cpp"
     "opengl-cube/shader.cpp"
+    "opengl-cube/texture.cpp"
     "includes/glad/glad.c"
 )
 
 target_include_directories(opengl_project
     PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/includes"
         "${CMAKE_CURRENT_SOURCE_DIR}/opengl-cube"
+)
+
+target_include_directories(opengl_project
+    SYSTEM PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/includes"
 )
 
 target_compile_definitions(opengl_project
