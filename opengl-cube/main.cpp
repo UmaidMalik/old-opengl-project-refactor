@@ -163,20 +163,55 @@
 
 using namespace glm;
 
+struct CameraState
+{
+    glm::vec3 position;
+    glm::vec3 direction;
+    glm::vec3 up;
+
+    float horizontalAngle;
+    float verticalAngle;
+
+    float normalSpeed;
+    float fastSpeed;
+    float fieldOfView;
+};
+
 const int numbObjInScene = 5;                           // make sure to update this if you add more models!!!
 
 const int numGridLines = 100;                           // how many gridlines (going one way)
 
+
+
+
+const glm::vec3 initialCameraDirection(0.0f, 0.0f, 0.0f);
 glm::vec3 initialCameraPosition(0.0f, 4.0f, 3.5f);
-glm::vec3 initialcameraLookAt(0.0f, 0.0f, 0.0f);
-glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
+
+CameraState camera{
+    initialCameraPosition,
+    initialCameraDirection,
+    glm::vec3(0.0f, 1.0f, 0.0f),
+    90.0f,
+    0.0f,
+    1.0f,
+    4.0f,
+    90.0f
+};
+/*
+cameraPosition         → camera.position
+cameraLookAt           → camera.direction
+cameraUp               → camera.up
+cameraHorizontalAngle  → camera.horizontalAngle
+cameraVerticalAngle    → camera.verticalAngle
+cameraSpeed            → camera.normalSpeed
+cameraSpeedFast        → camera.fastSpeed
+*/
+
+glm::vec3 initialcameraLookAt(0.5f, 1.0f, 0.5f);
+
+float deltaTime;
 
 glm::vec3 center(0.0f, 0.0f, 0.0f);
-
-
-glm::vec3 cameraPosition = initialCameraPosition;
-glm::vec3 cameraLookAt = initialcameraLookAt;
-
 glm::mat4 identityMatrix = glm::mat4(1.0f);
 
 glm::mat4 projectionMatrix = identityMatrix;
@@ -204,12 +239,7 @@ glm::mat4 worldOrientation_Y;
 glm::vec3 worldRotation;
 const float worldOrientation_ANGLE = 15.0f;
 
-float cameraHorizontalAngle = 90.0f;
-float cameraVerticalAngle = 0.0f;
-float cameraSpeed = 1.0f;
-float cameraSpeedFast = 4 * cameraSpeed;
-float deltaTime;
-float fov = 90.0f;
+
 
 double lastMousePosX, lastMousePosY;
 
@@ -677,7 +707,11 @@ int main()
 	shadowShaderProgram.setMat4("projectionMatrix", projectionMatrix);
 
 
-	viewMatrix = glm::lookAt(initialCameraPosition, initialCameraPosition + initialcameraLookAt, cameraUp);
+	viewMatrix = glm::lookAt(
+		camera.position, 
+		camera.position + camera.direction,
+		camera.up
+	);
 	texturedShaderProgram.useProgram();
 	texturedShaderProgram.setMat4("viewMatrix", viewMatrix);
 	shadowShaderProgram.useProgram();
@@ -845,7 +879,7 @@ int main()
 		
 		texturedShaderProgram.useProgram();
 
-		texturedShaderProgram.setVec3("viewPos", cameraPosition);
+		texturedShaderProgram.setVec3("viewPos", camera.position);
 
 		
 		texturedShaderProgram.setMat4("light_view_proj_matrix", lightSpaceMatrix);
@@ -1029,7 +1063,7 @@ void processInput(GLFWwindow* window, Shader shaderProgram)
 	
 	
 	bool fastCam = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS;
-	float currentCameraSpeed = (fastCam) ? cameraSpeedFast : cameraSpeed;
+	float currentCameraSpeed = fastCam ? camera.fastSpeed : camera.normalSpeed;
 
 	if ((glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) || (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) != GLFW_RELEASE)) {
 
@@ -1049,61 +1083,61 @@ void processInput(GLFWwindow* window, Shader shaderProgram)
 
 		// conversion to sperical coordinates
 		const float cameraAngularSpeed = 15.0f;	// mouse speed
-		cameraHorizontalAngle -= dx * cameraAngularSpeed * deltaTime;
-		cameraVerticalAngle -= dy * cameraAngularSpeed * deltaTime;
+		camera.horizontalAngle -= dx * cameraAngularSpeed * deltaTime;
+		camera.verticalAngle -= dy * cameraAngularSpeed * deltaTime;
 
 		// limit range of vertical camera angle
-		cameraVerticalAngle = std::max(-85.0f, std::min(85.0f, cameraVerticalAngle));
-		if (cameraHorizontalAngle > 360)
+		camera.verticalAngle = std::max(-85.0f, std::min(85.0f, camera.verticalAngle));
+		if (camera.horizontalAngle > 360)
 		{
-			cameraHorizontalAngle -= 360;
+			camera.horizontalAngle -= 360;
 		}
-		else if (cameraHorizontalAngle < -360)
+		else if (camera.horizontalAngle < -360)
 		{
-			cameraHorizontalAngle += 360;
+			camera.horizontalAngle += 360;
 		}
 
 		// conversion to radians
-		float theta = glm::radians(cameraHorizontalAngle);
-		float phi = glm::radians(cameraVerticalAngle);
+		float theta = glm::radians(camera.horizontalAngle);
+		float phi = glm::radians(camera.verticalAngle);
 
-		cameraLookAt = glm::vec3(cosf(phi) * cosf(theta), sinf(phi), -cosf(phi) * sinf(theta));
-		glm::vec3 cameraSideVector = glm::cross(cameraLookAt, glm::vec3(0.0f, 1.0f, 0.0f));
+		camera.direction = glm::vec3(cosf(phi) * cosf(theta), sinf(phi), -cosf(phi) * sinf(theta));
+		glm::vec3 cameraSideVector = glm::cross(camera.direction, glm::vec3(0.0f, 1.0f, 0.0f));
 
 		glm::normalize(cameraSideVector);
 
 		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) // move camera to the left
 		{
-			cameraPosition -= cameraSideVector * deltaTime * currentCameraSpeed;
+			camera.position -= cameraSideVector * deltaTime * currentCameraSpeed;
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // move camera to the right
 		{
-			cameraPosition += cameraSideVector * deltaTime * currentCameraSpeed;
+			camera.position += cameraSideVector * deltaTime * currentCameraSpeed;
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) // move camera forward
 		{
-			cameraPosition += cameraLookAt * deltaTime * currentCameraSpeed;
+			camera.position += camera.direction * deltaTime * currentCameraSpeed;
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) // move camera back
 		{
-			cameraPosition -= cameraLookAt * deltaTime * currentCameraSpeed;
+			camera.position -= camera.direction * deltaTime * currentCameraSpeed;
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) // move camera forward
 		{
-			cameraPosition.y += currentCameraSpeed * deltaTime;
+			camera.position.y += currentCameraSpeed * deltaTime;
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) // move camera down
 		{
-			cameraPosition.y -= currentCameraSpeed * deltaTime;
+			camera.position.y -= currentCameraSpeed * deltaTime;
 		}
 
 
-		viewMatrix = glm::lookAt(cameraPosition, cameraPosition + cameraLookAt, cameraUp);
+		viewMatrix = glm::lookAt(camera.position, camera.position + camera.direction, camera.up);
 		shaderProgram.setMat4("viewMatrix", viewMatrix);
 	}
 	
@@ -1118,8 +1152,8 @@ void processInput(GLFWwindow* window, Shader shaderProgram)
 	if (glfwGetKey(window, GLFW_KEY_HOME) == GLFW_PRESS)
 	{
 		// reset camera position and lookAt
-		cameraPosition = initialCameraPosition;
-		cameraLookAt = initialcameraLookAt;
+		camera.position = initialCameraPosition;
+		camera.direction = initialCameraDirection;
 
 		// world angle/orientation
 		worldOrientation_X = identityMatrix;
@@ -1129,7 +1163,7 @@ void processInput(GLFWwindow* window, Shader shaderProgram)
 
 		//shaderProgram.setMat4("worldMatrix", worldMatrix);
 
-		viewMatrix = lookAt(cameraPosition, cameraPosition + cameraLookAt, cameraUp);
+		viewMatrix = lookAt(camera.position, camera.position + camera.direction, camera.up);
 		shaderProgram.setMat4("viewMatrix", viewMatrix);
 	}
 
@@ -1409,20 +1443,20 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 		// scroll up to zoom in 
 		if (yoffset < 0) {
-			if (fov <= 120.0f)
+			if (camera.fieldOfView <= 120.0f)
 			{
-				fov = fov + 5.0;
-				projectionMatrix = glm::perspective(glm::radians(fov),			// field of view in degrees
+				camera.fieldOfView += 5.0;
+				projectionMatrix = glm::perspective(glm::radians(camera.fieldOfView),			// field of view in degrees
 					1024.0f / 768.0f,	// aspect ratio
 					0.005f, 500000.0f);	// near and far (near > 0)
 			}
 		}
 		// scroll down to zoom out 
 		if (yoffset > 0) {
-			if (fov >= 10.0f)
+			if (camera.fieldOfView >= 10.0f)
 			{
-				fov = fov - 5.0;
-				projectionMatrix = glm::perspective(glm::radians(fov),			// field of view in degrees
+				camera.fieldOfView -= 5.0;
+				projectionMatrix = glm::perspective(glm::radians(camera.fieldOfView),			// field of view in degrees
 					1024.0f / 768.0f,	// aspect ratio
 					0.005f, 500000.0f);	// near and far (near > 0)
 			}
@@ -2633,7 +2667,7 @@ void drawSkybox(Shader shaderProgram, Texture skybox_front, Texture skybox_right
 	// draw skybox
 	
 	shaderProgram.setFloat("ambientStrength", 2.0);
-	modelTranslationMatrix = translate(glm::mat4(1.0f), glm::vec3(cameraPosition.x, cameraPosition.y, cameraPosition.z));
+	modelTranslationMatrix = translate(glm::mat4(1.0f), glm::vec3(camera.position.x, camera.position.y, camera.position.z));
 	modelScalingMatrix = scale(glm::mat4(1.0f), glm::vec3(50000.0f, 50000.0f, 50000.0f));
 	partMatrix = translate(glm::mat4(1.0f), glm::vec3(-0.05f, -0.05f, -0.05f));
 	worldMatrix = worldOrientationMatrix * modelTranslationMatrix * modelScalingMatrix * partMatrix;
