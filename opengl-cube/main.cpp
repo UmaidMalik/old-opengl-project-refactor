@@ -54,13 +54,13 @@ struct BrowserScene {
     Scene scene;
 };
 
-Scene* browserScene = nullptr;
+BrowserScene* browserApp = nullptr;
 
 void browserFrame(void* data) {
     auto* app = static_cast<BrowserScene*>(data);
     if (glfwWindowShouldClose(app->window)) {
         emscripten_cancel_main_loop();
-        browserScene = nullptr;
+        browserApp = nullptr;
         delete app;
         glfwTerminate();
         return;
@@ -73,8 +73,20 @@ void browserFrame(void* data) {
 
 #ifdef __EMSCRIPTEN__
 extern "C" EMSCRIPTEN_KEEPALIVE void turn_cube(int key) {
-    if (browserScene) {
-        browserScene->queuePuzzleKey(key);
+    if (browserApp) browserApp->scene.queuePuzzleKey(key);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int toggle_walk() {
+    return browserApp && browserApp->scene.toggleWalking();
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void walk_look(float dx, float dy) {
+    if (browserApp) browserApp->scene.walkLook(dx, dy);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void resize_scene(int width, int height) {
+    if (browserApp && width > 0 && height > 0) {
+        glfwSetWindowSize(browserApp->window, width, height);
     }
 }
 #endif
@@ -90,7 +102,7 @@ int main() {
     try {
 #ifdef __EMSCRIPTEN__
         auto* app = new BrowserScene{window, Scene(window)};
-        browserScene = &app->scene;
+        browserApp = app;
         emscripten_set_main_loop_arg(browserFrame, app, 0, false);
         setBrowserSceneReady(true);
 #else

@@ -24,7 +24,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
 endif()
 
 if(EMSCRIPTEN)
-    target_sources(opengl_project PRIVATE opengl-cube/landscape.cpp)
+    target_sources(opengl_project PRIVATE
+        opengl-cube/landscape.cpp
+        opengl-cube/scene_walk.cpp
+        opengl-cube/walker.cpp
+    )
     set(web_shell "${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html")
     set_target_properties(opengl_project PROPERTIES SUFFIX ".html")
     target_compile_definitions(opengl_project PRIVATE PROJECT_ASSET_DIR="/assets")
@@ -68,6 +72,12 @@ else()
         target_include_directories(rubiks_cube_test PRIVATE opengl-cube)
         target_include_directories(rubiks_cube_test SYSTEM PRIVATE includes)
         add_test(NAME rubiks_cube_turns COMMAND rubiks_cube_test)
+
+        add_executable(walker_test tests/walker_test.cpp opengl-cube/walker.cpp)
+        target_compile_features(walker_test PRIVATE cxx_std_17)
+        target_include_directories(walker_test PRIVATE opengl-cube)
+        target_include_directories(walker_test SYSTEM PRIVATE includes)
+        add_test(NAME walker_collision COMMAND walker_test)
     endif()
 
     add_custom_target(run

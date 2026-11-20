@@ -57,16 +57,41 @@
 
     figure:focus-within { border-color: #6386a3; }
 
+    .scene-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .5rem;
+      padding: .65rem .8rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .scene-actions button {
+      padding-inline: .75rem;
+      color: #e3ecfa;
+      font: 600 .82rem "Segoe UI", system-ui, sans-serif;
+    }
+
+    .scene-actions button[aria-pressed="true"] {
+      background: #29405a;
+      border-color: var(--focus);
+    }
+
+    #view-status {
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
     .viewport {
       position: relative;
+      aspect-ratio: 4 / 3;
       background: #101725;
     }
 
     canvas {
       display: block;
       inline-size: 100%;
-      block-size: auto;
-      aspect-ratio: 4 / 3;
+      block-size: 100%;
     }
 
     :focus-visible {
@@ -198,6 +223,26 @@
     dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .25rem .6rem; }
     dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem; margin: 0; }
 
+    .workspace:is(:fullscreen, .immersive) {
+      padding: .75rem;
+      background: #0c1018;
+      overflow: auto;
+    }
+
+    .workspace.immersive {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      height: 100dvh;
+    }
+
+    @media (min-width: 52.01rem) {
+      .workspace:is(:fullscreen, .immersive) { height: 100dvh; align-items: stretch; }
+      .workspace:is(:fullscreen, .immersive) figure { display: flex; flex-direction: column; }
+      .workspace:is(:fullscreen, .immersive) .viewport { flex: 1 1 0; min-block-size: 0; aspect-ratio: auto; }
+      .workspace:is(:fullscreen, .immersive) .controls { align-self: start; max-block-size: 100%; overflow: auto; }
+    }
+
     @media (max-width: 52rem) {
       .workspace { grid-template-columns: minmax(0, 1fr); }
     }
@@ -206,9 +251,14 @@
 <body>
   <main>
     <h1>OpenGL Letter Scene</h1>
-    <div class="workspace">
+    <div class="workspace" id="workspace">
       <figure>
-        <div class="viewport">
+        <div class="scene-actions">
+          <button id="walk-toggle" type="button" aria-pressed="false" disabled>Start walking</button>
+          <button id="fullscreen-toggle" type="button" aria-pressed="false">Fullscreen</button>
+          <span id="view-status" role="status"></span>
+        </div>
+        <div class="viewport" id="viewport">
           <canvas id="canvas" width="1024" height="768" tabindex="0"
                   aria-label="Interactive 3D scene" aria-describedby="scene-keyboard"></canvas>
           <div id="status" role="status">
@@ -250,6 +300,17 @@
           </fieldset>
         </section>
 
+        <section aria-labelledby="walk-title">
+          <h3 id="walk-title">First-person walking</h3>
+          <dl>
+            <div><dt>Switch walking mode</dt><dd><kbd>M</kbd></dd></div>
+            <div><dt>Walk / sprint / jump</dt><dd><kbd>W A S D</kbd><kbd>Shift</kbd><kbd>Space</kbd></dd></div>
+            <div><dt>Look around</dt><dd><kbd>Mouse</kbd><kbd>Arrow keys</kbd></dd></div>
+            <div><dt>Release the mouse</dt><dd><kbd>Esc</kbd></dd></div>
+            <div><dt>Return to the platform</dt><dd><kbd>Home</kbd></dd></div>
+          </dl>
+        </section>
+
         <section aria-labelledby="camera-title">
           <h3 id="camera-title">Camera &amp; scene</h3>
           <dl>
@@ -287,9 +348,60 @@
     const statusPanel = document.getElementById('status');
     const statusMessage = document.getElementById('status-message');
     const progress = document.getElementById('progress');
+    const workspace = document.getElementById('workspace');
+    const viewport = document.getElementById('viewport');
+    const walkToggle = document.getElementById('walk-toggle');
+    const fullscreenToggle = document.getElementById('fullscreen-toggle');
+    const viewStatus = document.getElementById('view-status');
+    let ready = false;
+    let walking = false;
+
+    function resizeScene() {
+      if (!ready) return;
+      const {width, height} = viewport.getBoundingClientRect();
+      if (width < 1 || height < 1) return;
+      const scale = Math.min(window.devicePixelRatio || 1, 1.5, Math.sqrt(1500000 / (width * height)));
+      const pixelsWide = Math.round(width * scale);
+      const pixelsHigh = Math.round(height * scale);
+      if (canvas.width !== pixelsWide || canvas.height !== pixelsHigh) {
+        Module._resize_scene(pixelsWide, pixelsHigh);
+      }
+    }
+
+    function updateViewStatus() {
+      if (!walking) {
+        viewStatus.textContent = '';
+      } else {
+        viewStatus.textContent = document.pointerLockElement === canvas
+          ? 'Esc releases the mouse.'
+          : 'Click the scene for mouse look, or use the arrow keys.';
+      }
+    }
+
+    function requestWalkLook() {
+      if (!walking || document.pointerLockElement === canvas || !canvas.requestPointerLock) return;
+      try {
+        canvas.requestPointerLock()?.catch(updateViewStatus);
+      } catch {
+        updateViewStatus();
+      }
+    }
+
+    function toggleWalk() {
+      if (!ready) return;
+      walking = Boolean(Module._toggle_walk());
+      walkToggle.textContent = walking ? 'Stop walking' : 'Start walking';
+      walkToggle.setAttribute('aria-pressed', String(walking));
+      canvas.focus({preventScroll: true});
+      if (walking) requestWalkLook();
+      else if (document.pointerLockElement === canvas) document.exitPointerLock();
+      updateViewStatus();
+    }
 
     function sceneFailed(message = 'The scene could not start. Reload in a browser with WebGL 2 support.') {
+      ready = false;
       moves.disabled = true;
+      walkToggle.disabled = true;
       progress.hidden = true;
       statusMessage.textContent = message;
       statusPanel.hidden = false;
@@ -307,8 +419,11 @@
         }
       },
       sceneReady() {
+        ready = true;
         moves.disabled = false;
+        walkToggle.disabled = false;
         statusPanel.hidden = true;
+        resizeScene();
       },
       sceneFailed,
       onAbort() { sceneFailed(); },
@@ -318,7 +433,43 @@
       const button = event.target.closest('button[data-key]');
       if (button && !moves.disabled) Module._turn_cube(button.dataset.key.charCodeAt(0));
     });
+    new ResizeObserver(resizeScene).observe(viewport);
+    window.addEventListener('resize', resizeScene);
+    walkToggle.addEventListener('click', toggleWalk);
+    function updateFullscreen() {
+      const fullscreen = document.fullscreenElement === workspace || workspace.classList.contains('immersive');
+      fullscreenToggle.textContent = fullscreen ? 'Exit fullscreen' : 'Fullscreen';
+      fullscreenToggle.setAttribute('aria-pressed', String(fullscreen));
+      if (fullscreen) canvas.focus({preventScroll: true});
+      resizeScene();
+    }
+
+    fullscreenToggle.addEventListener('click', async () => {
+      if (workspace.classList.contains('immersive')) {
+        workspace.classList.remove('immersive');
+        updateFullscreen();
+      } else if (document.fullscreenElement === workspace) {
+        await document.exitFullscreen();
+      } else {
+        try {
+          await workspace.requestFullscreen();
+        } catch {
+          // Embedded browsers can deny native fullscreen. Fill the available viewport instead.
+          workspace.classList.add('immersive');
+          updateFullscreen();
+        }
+      }
+    });
+    document.addEventListener('fullscreenchange', updateFullscreen);
+    document.addEventListener('pointerlockchange', updateViewStatus);
+    document.addEventListener('pointerlockerror', updateViewStatus);
+    document.addEventListener('mousemove', (event) => {
+      if (ready && walking && document.pointerLockElement === canvas) {
+        Module._walk_look(event.movementX, event.movementY);
+      }
+    });
     canvas.addEventListener('pointerdown', () => canvas.focus({preventScroll: true}));
+    canvas.addEventListener('click', requestWalkLook);
     canvas.addEventListener('contextmenu', (event) => event.preventDefault());
     for (const type of ['wheel', 'mousewheel']) {
       canvas.addEventListener(type, (event) => {
@@ -335,7 +486,16 @@
         event.stopImmediatePropagation();
         return;
       }
-      if (document.activeElement === canvas && scrollKeys.has(event.key)) event.preventDefault();
+      if (event.key === 'Escape' && !document.pointerLockElement && workspace.classList.contains('immersive')) {
+        workspace.classList.remove('immersive');
+        updateFullscreen();
+      }
+      if (document.activeElement !== canvas) return;
+      if (event.code === 'KeyM' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        if (!event.repeat) toggleWalk();
+      }
+      if (scrollKeys.has(event.key)) event.preventDefault();
     }, true);
   </script>
   {{{ SCRIPT }}}

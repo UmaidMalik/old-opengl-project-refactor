@@ -10,10 +10,11 @@
 
 namespace {
 
-constexpr int shadowSize = 1024;
 #ifdef __EMSCRIPTEN__
+constexpr int shadowSize = 2048;
 constexpr bool outdoorLandscape = true;
 #else
+constexpr int shadowSize = 1024;
 constexpr bool outdoorLandscape = false;
 #endif
 const glm::mat4 identity(1.0f);
@@ -132,15 +133,28 @@ void Scene::frame() {
     cube.bind();
 #ifdef __EMSCRIPTEN__
     const auto sun = glm::vec3(orientation * glm::vec4(Landscape::sunDirection, 0.0f));
-    const auto lightPosition = sun * 20.0f;
+    constexpr float shadowWidth = 44.0f;
+    constexpr float shadowTexel = shadowWidth / shadowSize;
+    const auto lightRight = glm::normalize(glm::cross(glm::vec3(0, 1, 0), sun));
+    const auto lightUp = glm::cross(sun, lightRight);
+    const auto snapToTexel = [&](const glm::vec3& axis) {
+        return std::round(glm::dot(camera.position, axis) / shadowTexel) * shadowTexel;
+    };
+    // Snap the moving shadow camera to its texels so edges stay steady during walking.
+    const auto lightFocus = walking ? lightRight * snapToTexel(lightRight) + lightUp * snapToTexel(lightUp)
+                                        + sun * glm::dot(camera.position, sun)
+                                    : glm::vec3(0.0f);
+    const auto lightPosition = lightFocus + sun * 35.0f;
     const auto lightDirection = -sun;
-    const auto lightProjection = glm::ortho(-8.5f, 8.5f, -8.5f, 8.5f, 0.5f, 36.0f);
+    const auto lightProjection = glm::ortho(-shadowWidth / 2, shadowWidth / 2, -shadowWidth / 2,
+                                             shadowWidth / 2, 1.0f, 78.0f);
 #else
+    const glm::vec3 lightFocus(0.0f);
     const auto lightPosition = spotlightPosition;
     const auto lightDirection = glm::normalize(-lightPosition);
     const auto lightProjection = glm::perspective(glm::radians(90.0f), 1.0f, 1.0f, 20.0f);
 #endif
-    const auto lightView = glm::lookAt(lightPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    const auto lightView = glm::lookAt(lightPosition, lightFocus, glm::vec3(0.0f, 1.0f, 0.0f));
     const auto lightSpace = lightProjection * lightView;
 
     shadow.useProgram();
@@ -151,6 +165,9 @@ void Scene::frame() {
     glViewport(0, 0, shadowSize, shadowSize);
     glClear(GL_DEPTH_BUFFER_BIT);
     drawGeometry(shadow, true);
+#ifdef __EMSCRIPTEN__
+    landscape.drawShadows(shadow, orientation);
+#endif
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, width, height);
@@ -159,7 +176,10 @@ void Scene::frame() {
     const auto projection = createProjectionMatrix(camera, aspect, orthographic);
     const auto view = createViewMatrix(camera);
 #ifdef __EMSCRIPTEN__
-    landscape.draw(projection * view * orientation, width, height);
+    landscape.drawSky(projection * view * orientation);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, shadowTexture);
+    landscape.draw(orientation, projection * view, lightSpace, camera.position);
     cube.bind();
 #endif
 
@@ -207,6 +227,23 @@ void Scene::drawPlatform(const Shader& shader, bool shadowPass) {
     }
 }
 
+glm::mat4 Scene::letterModel(std::size_t index) const {
+    const auto& pose = letters[index];
+    auto model = glm::scale(glm::translate(orientation, letterDesigns[index].position + pose.offset) * pose.shear,
+                            glm::vec3(pose.scale));
+    model = glm::rotate(model, -pose.rotation.x, {1, 0, 0});
+    model = glm::rotate(model, -pose.rotation.y, {0, 1, 0});
+    return glm::rotate(model, -pose.rotation.z, {0, 0, 1});
+}
+
+glm::mat4 Scene::letterPartMatrix(const glm::mat4& model, const LetterPart& part) {
+    glm::mat4 shear(1.0f);
+    shear[1][0] = part.shear;
+    auto transform = glm::translate(model, part.offset) * shear;
+    transform = glm::rotate(transform, glm::radians(part.angle), {0, 0, 1});
+    return glm::scale(transform, part.scale);
+}
+
 void Scene::drawGeometry(const Shader& shader, bool shadowPass) {
     drawPlatform(shader, shadowPass);
     if (!shadowPass) {
@@ -214,22 +251,13 @@ void Scene::drawGeometry(const Shader& shader, bool shadowPass) {
         shader.setFloat("ambientStrength", outdoorLandscape ? 0.63f : 0.3f);
     }
     for (std::size_t i = 0; i < letters.size(); ++i) {
-        const auto& pose = letters[i];
         const auto& design = letterDesigns[i];
-        auto model = glm::scale(glm::translate(orientation, design.position + pose.offset) * pose.shear,
-                               glm::vec3(pose.scale));
-        model = glm::rotate(model, -pose.rotation.x, {1, 0, 0});
-        model = glm::rotate(model, -pose.rotation.y, {0, 1, 0});
-        model = glm::rotate(model, -pose.rotation.z, {0, 0, 1});
+        const auto model = letterModel(i);
         if (!shadowPass) {
             shader.setVec3("objectColor", texturedModels ? glm::vec3(1.0f) : design.color);
         }
         for (auto part = design.begin; part != design.end; ++part) {
-            glm::mat4 shear(1.0f);
-            shear[1][0] = part->shear;
-            auto transform = glm::translate(model, part->offset) * shear;
-            transform = glm::rotate(transform, glm::radians(part->angle), {0, 0, 1});
-            shader.setMat4("worldMatrix", glm::scale(transform, part->scale));
+            shader.setMat4("worldMatrix", letterPartMatrix(model, *part));
             if (!shadowPass) {
                 glBindTexture(GL_TEXTURE_2D, (part->metal ? metal : box).getTextureID());
             }
