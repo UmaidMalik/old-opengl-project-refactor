@@ -1,5 +1,6 @@
 #include "rubiks_cube.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <set>
@@ -67,4 +68,32 @@ int main() {
     cube.turn(1, -1, -1);
     cube.turn(0, 1, -1);
     check(sameState(cube, solved), "Reversing a sequence must restore the full cube state.");
+
+    RubiksCube animated;
+    animated.advance(10.0f);
+    animated.queueTurn({0, 1, 1});
+    animated.queueTurn({1, -1, 1});
+    check(animated.turnAngle() == 0.0f, "Idle time must not advance the next turn.");
+    animated.advance(RubiksCube::turnSeconds * 0.5f);
+    check(std::abs(animated.turnAngle() - glm::radians(45.0f)) < 0.001f,
+          "The active slice must pass through 45 degrees at the midpoint.");
+    check(sameState(animated, solved), "An in-progress turn must leave the grid state intact.");
+
+    auto expected = solved;
+    expected.turn(0, 1, 1);
+    animated.advance(RubiksCube::turnSeconds * 0.75f);
+    check(sameState(animated, expected), "The first turn must commit before the queued turn starts.");
+    const auto* next = animated.activeTurn();
+    check(next && next->axis == 1 && animated.turnAngle() > 0.0f,
+          "Time left over after committing must advance the next queued turn.");
+    expected.turn(1, -1, 1);
+    animated.advance(RubiksCube::turnSeconds);
+    check(!animated.activeTurn() && sameState(animated, expected),
+          "Queued turns must commit in input order.");
+
+    animated.queueTurn({1, -1, -1});
+    animated.queueTurn({0, 1, -1});
+    animated.advance(RubiksCube::turnSeconds * 2.0f);
+    check(!animated.activeTurn() && sameState(animated, solved),
+          "Queued inverse turns must restore the full cube state.");
 }

@@ -3,6 +3,19 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+CameraState initialCamera()
+{
+#ifdef __EMSCRIPTEN__
+    CameraState camera{{1.4f, 4.2f, 4.5f}, {}, {0.0f, 1.0f, 0.0f},
+                       115.0f, -24.0f, 1.0f, 4.0f, 60.0f};
+#else
+    CameraState camera{{0.0f, 4.0f, 3.5f}, {}, {0.0f, 1.0f, 0.0f},
+                       90.0f, 0.0f, 1.0f, 4.0f, 90.0f};
+#endif
+    updateCameraDirection(camera);
+    return camera;
+}
+
 void updateCameraDirection(CameraState& camera)
 {
     camera.direction = glm::vec3(

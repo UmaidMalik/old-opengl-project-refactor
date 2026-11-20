@@ -24,6 +24,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
 endif()
 
 if(EMSCRIPTEN)
+    set(web_shell "${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html")
     set_target_properties(opengl_project PROPERTIES SUFFIX ".html")
     target_compile_definitions(opengl_project PRIVATE PROJECT_ASSET_DIR="/assets")
     target_compile_options(opengl_project PRIVATE -fexceptions)
@@ -33,10 +34,11 @@ if(EMSCRIPTEN)
         -sMIN_WEBGL_VERSION=2
         -sMAX_WEBGL_VERSION=2
         -sALLOW_MEMORY_GROWTH=1
+        "SHELL:--shell-file \"${web_shell}\""
         "SHELL:--preload-file \"${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets\""
     )
     file(GLOB_RECURSE web_assets CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/*")
-    set_property(TARGET opengl_project APPEND PROPERTY LINK_DEPENDS "${web_assets}")
+    set_property(TARGET opengl_project APPEND PROPERTY LINK_DEPENDS "${web_shell}" "${web_assets}")
 else()
     find_package(OpenGL REQUIRED)
     find_package(glfw3 3.3 QUIET)

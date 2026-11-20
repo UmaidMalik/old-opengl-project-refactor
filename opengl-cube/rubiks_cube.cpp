@@ -24,9 +24,40 @@ RubiksCube::RubiksCube() {
     }
 }
 
+void RubiksCube::queueTurn(Turn move) {
+    turns.push_back(move);
+}
+
+void RubiksCube::advance(float elapsed) {
+    turnElapsed += elapsed;
+    while (!turns.empty() && turnElapsed >= turnSeconds) {
+        const auto move = turns.front();
+        turn(move.axis, move.layer, move.direction);
+        turns.pop_front();
+        turnElapsed -= turnSeconds;
+    }
+    if (turns.empty()) {
+        turnElapsed = 0.0f;
+    }
+}
+
+const RubiksCube::Turn* RubiksCube::activeTurn() const {
+    return turns.empty() ? nullptr : &turns.front();
+}
+
+float RubiksCube::turnAngle() const {
+    const auto* move = activeTurn();
+    if (!move) {
+        return 0.0f;
+    }
+    const float t = turnElapsed / turnSeconds;
+    return move->direction * glm::radians(90.0f) * glm::smoothstep(0.0f, 1.0f, t);
+}
+
 void RubiksCube::turn(int axis, int layer, int direction) {
+    const Turn move{axis, layer, direction};
     for (auto& cubie : cubies) {
-        if (cubie.position[axis] != layer) {
+        if (!move.affects(cubie.position)) {
             continue;
         }
         rotateQuarter(cubie.position, axis, direction);

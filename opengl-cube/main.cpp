@@ -5,9 +5,20 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+
+EM_JS(void, setBrowserSceneReady, (int ready), {
+    Module[ready ? 'sceneReady' : 'sceneFailed']();
+});
 #endif
 
 namespace {
+
+void reportStartupError(const char* message) {
+    std::cerr << message << '\n';
+#ifdef __EMSCRIPTEN__
+    setBrowserSceneReady(false);
+#endif
+}
 
 GLFWwindow* openWindow() {
     if (!glfwInit()) {
@@ -43,10 +54,13 @@ struct BrowserScene {
     Scene scene;
 };
 
+Scene* browserScene = nullptr;
+
 void browserFrame(void* data) {
     auto* app = static_cast<BrowserScene*>(data);
     if (glfwWindowShouldClose(app->window)) {
         emscripten_cancel_main_loop();
+        browserScene = nullptr;
         delete app;
         glfwTerminate();
         return;
@@ -57,10 +71,18 @@ void browserFrame(void* data) {
 
 }  // namespace
 
+#ifdef __EMSCRIPTEN__
+extern "C" EMSCRIPTEN_KEEPALIVE void turn_cube(int key) {
+    if (browserScene) {
+        browserScene->queuePuzzleKey(key);
+    }
+}
+#endif
+
 int main() {
     GLFWwindow* window = openWindow();
     if (!window) {
-        std::cerr << "Could not initialize the graphics window.\n";
+        reportStartupError("Could not initialize the graphics window.");
         glfwTerminate();
         return 1;
     }
@@ -68,7 +90,9 @@ int main() {
     try {
 #ifdef __EMSCRIPTEN__
         auto* app = new BrowserScene{window, Scene(window)};
+        browserScene = &app->scene;
         emscripten_set_main_loop_arg(browserFrame, app, 0, false);
+        setBrowserSceneReady(true);
 #else
         Scene scene(window);
         while (!glfwWindowShouldClose(window)) {
@@ -76,7 +100,7 @@ int main() {
         }
 #endif
     } catch (const std::exception& error) {
-        std::cerr << error.what() << '\n';
+        reportStartupError(error.what());
         glfwTerminate();
         return 1;
     }

@@ -16,6 +16,7 @@ struct CameraState
     float fieldOfView;
 };
 
+CameraState initialCamera();
 void updateCameraDirection(CameraState& camera);
 glm::mat4 createViewMatrix(const CameraState& camera);
 glm::mat4 createProjectionMatrix(const CameraState& camera, float aspect, bool orthographic);

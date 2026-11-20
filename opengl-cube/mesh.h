@@ -6,7 +6,11 @@
 
 class Mesh {
 public:
+#ifdef __EMSCRIPTEN__
+    static constexpr int gridDivisions = 20;
+#else
     static constexpr int gridDivisions = 100;
+#endif
     static Mesh cube();
     static Mesh guides();
 
