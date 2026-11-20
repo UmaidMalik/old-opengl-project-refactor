@@ -2,6 +2,8 @@
 
 Explore five 3D letter-and-number models and a playable 3x3 picture cube. The scene runs with OpenGL 3.3 on desktop and WebGL 2 in a browser.
 
+![Gameplay screenshot showing the picture cube, checker-tile platform, forest hills, and pond](docs/gameplay.jpg)
+
 ## Desktop
 
 Use CMake 3.20 or newer, a C++17 compiler, and GLFW 3.3 or newer. The x64 Visual Studio generator can use the repository's bundled GLFW library.
