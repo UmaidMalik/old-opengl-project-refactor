@@ -24,6 +24,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
 endif()
 
 if(EMSCRIPTEN)
+    target_sources(opengl_project PRIVATE opengl-cube/landscape.cpp)
     set(web_shell "${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html")
     set_target_properties(opengl_project PROPERTIES SUFFIX ".html")
     target_compile_definitions(opengl_project PRIVATE PROJECT_ASSET_DIR="/assets")

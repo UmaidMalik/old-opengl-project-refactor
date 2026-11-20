@@ -6,6 +6,10 @@
 #include "shader.h"
 #include "texture.h"
 
+#ifdef __EMSCRIPTEN__
+#include "landscape.h"
+#endif
+
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -37,6 +41,7 @@ private:
     void setMouseLook(bool enabled);
     bool down(int key) const;
 
+    void drawPlatform(const Shader& shader, bool shadowPass);
     void drawGeometry(const Shader& shader, bool shadowPass);
     void drawPuzzle(const Shader& shader, bool shadowPass);
     void drawBackdrop(const Shader& shader);
@@ -50,6 +55,9 @@ private:
     Texture ground;
     Texture box;
     Texture metal;
+#ifdef __EMSCRIPTEN__
+    Landscape landscape;
+#endif
     std::vector<Texture> digits;
     std::array<std::vector<Texture>, 6> stickers;
     std::vector<Texture> skybox;

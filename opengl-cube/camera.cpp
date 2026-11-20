@@ -7,7 +7,7 @@ CameraState initialCamera()
 {
 #ifdef __EMSCRIPTEN__
     CameraState camera{{1.4f, 4.2f, 4.5f}, {}, {0.0f, 1.0f, 0.0f},
-                       115.0f, -24.0f, 1.0f, 4.0f, 60.0f};
+                       115.0f, -15.0f, 1.0f, 4.0f, 62.0f};
 #else
     CameraState camera{{0.0f, 4.0f, 3.5f}, {}, {0.0f, 1.0f, 0.0f},
                        90.0f, 0.0f, 1.0f, 4.0f, 90.0f};
@@ -39,7 +39,11 @@ glm::mat4 createViewMatrix(const CameraState& camera)
 glm::mat4 createProjectionMatrix(const CameraState& camera, float aspect, bool orthographic)
 {
     if (orthographic) {
+#ifdef __EMSCRIPTEN__
+        return glm::ortho(-3.0f * aspect, 3.0f * aspect, -3.0f, 3.0f, 0.05f, 300.0f);
+#else
         return glm::ortho(-3.0f * aspect, 3.0f * aspect, -3.0f, 3.0f, -500.0f, 500000.0f);
+#endif
     }
     return glm::perspective(glm::radians(camera.fieldOfView), aspect, 0.05f, 10000.0f);
 }
