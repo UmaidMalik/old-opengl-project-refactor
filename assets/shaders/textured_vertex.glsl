@@ -14,17 +14,12 @@ out vec3 FragPos;
 out vec4 FragPosLightSpace;
 out vec2 vertexUV;
 
-
-        
 void main()
-	{
-		
-		Normal = mat3(worldMatrix) * aNormal;
-		FragPos = vec3(worldMatrix * vec4(aPos, 1.0));
-		FragPosLightSpace = light_view_proj_matrix * vec4(FragPos, 1.0);
-		
-		vertexUV = aUV;
-		
-		mat4 modelViewProjection = projectionMatrix * viewMatrix * worldMatrix;
-		gl_Position = modelViewProjection * vec4(aPos, 1.0);
-	}
+{
+    vec4 position = worldMatrix * vec4(aPos, 1.0);
+    Normal = transpose(inverse(mat3(worldMatrix))) * aNormal;
+    FragPos = position.xyz;
+    FragPosLightSpace = light_view_proj_matrix * position;
+    vertexUV = aUV;
+    gl_Position = projectionMatrix * viewMatrix * position;
+}

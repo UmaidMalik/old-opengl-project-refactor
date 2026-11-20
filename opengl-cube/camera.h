@@ -18,4 +18,4 @@ struct CameraState
 
 void updateCameraDirection(CameraState& camera);
 glm::mat4 createViewMatrix(const CameraState& camera);
-glm::mat4 createProjectionMatrix(int width, int height);
+glm::mat4 createProjectionMatrix(const CameraState& camera, float aspect, bool orthographic);
