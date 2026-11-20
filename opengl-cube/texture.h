@@ -1,23 +1,17 @@
-#ifndef TEXTURE_H
-#define TEXTURE_H
+#pragma once
 
-#include <glad/glad.h>
-#include <glm/glm.hpp>
+#include "gl_api.h"
 
-#include <stb_image/stb_image.h>
-
-class Texture
-{
+class Texture {
 public:
+    explicit Texture(const char* path);
+    ~Texture();
+    Texture(Texture&& other) noexcept;
+    Texture(const Texture&) = delete;
+    Texture& operator=(const Texture&) = delete;
 
-	Texture(const char* textureFilePath);
-
-	~Texture();
-
-	unsigned int getTextureID();
+    GLuint getTextureID() const { return id; }
 
 private:
-	unsigned int textureID;
+    GLuint id = 0;
 };
-#endif 
-

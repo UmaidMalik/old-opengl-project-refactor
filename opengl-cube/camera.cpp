@@ -23,15 +23,10 @@ glm::mat4 createViewMatrix(const CameraState& camera)
     );
 }
 
-glm::mat4 createProjectionMatrix(
-    int width,
-    int height
-)
+glm::mat4 createProjectionMatrix(const CameraState& camera, float aspect, bool orthographic)
 {
-	return glm::perspective(
-		90.0f,
-		(float)width / (float)height,
-		0.0005f,
-		500000.0f
-	);
+    if (orthographic) {
+        return glm::ortho(-3.0f * aspect, 3.0f * aspect, -3.0f, 3.0f, -500.0f, 500000.0f);
+    }
+    return glm::perspective(glm::radians(camera.fieldOfView), aspect, 0.05f, 10000.0f);
 }

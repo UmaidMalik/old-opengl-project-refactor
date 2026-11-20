@@ -3,49 +3,28 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image/stb_image.h>
 
-#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
-
-Texture::Texture(const char* textureFilePath) 
-{
-    textureID = 0;
-    glGenTextures(1, &textureID);
-    assert(textureID != 0);
-
-    glBindTexture(GL_TEXTURE_2D, textureID);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-
-    int width, height, nrChannels;
-    unsigned char* data = stbi_load(textureFilePath, &width, &height, &nrChannels, 0);
-    if (!data)
-    {
-        std::cerr << "Error::Texture class could not load texture file path:" << textureFilePath << std::endl;
-        return;
+Texture::Texture(const char* path) {
+    int width, height, channels;
+    unsigned char* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels) {
+        throw std::runtime_error(std::string("Could not load texture: ") + path);
     }
 
-    GLenum format = 0;
-    if (nrChannels == 1)
-        format = GL_RED;
-    else if (nrChannels == 3)
-        format = GL_RGB;
-    else if (nrChannels == 4)
-        format = GL_RGBA;
-
-    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-
-    stbi_image_free(data);
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     glBindTexture(GL_TEXTURE_2D, 0);
-
+    stbi_image_free(pixels);
 }
 
-Texture::~Texture() 
-{
-}
+Texture::Texture(Texture&& other) noexcept : id(std::exchange(other.id, 0)) {}
 
-unsigned int Texture::getTextureID() 
-{
-    return textureID;
+Texture::~Texture() {
+    glDeleteTextures(1, &id);
 }
