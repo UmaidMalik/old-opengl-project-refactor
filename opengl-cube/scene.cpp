@@ -12,12 +12,12 @@ namespace {
 
 constexpr int shadowSize = 1024;
 #ifdef __EMSCRIPTEN__
-constexpr bool studioBackdrop = true;
+constexpr bool outdoorLandscape = true;
 #else
-constexpr bool studioBackdrop = false;
+constexpr bool outdoorLandscape = false;
 #endif
 const glm::mat4 identity(1.0f);
-const glm::vec3 lightPosition(-3.0f, 3.0f, 4.0f);
+[[maybe_unused]] const glm::vec3 spotlightPosition(-3.0f, 3.0f, 4.0f);
 
 void loadTiles(std::vector<Texture>& tiles, const char* prefix, const char* extension, int first, int last) {
     tiles.reserve(last - first + 1);
@@ -43,7 +43,7 @@ Scene::Scene(GLFWwindow* window)
     loadTiles(stickers[3], ASSET_PATH("textures/face_1/hollow_knight_art_"), ".png", 1, 9);
     loadTiles(stickers[4], ASSET_PATH("textures/face_4/shape_B_"), ".png", 1, 9);
     loadTiles(stickers[5], ASSET_PATH("textures/face_3/shape_A_"), ".png", 1, 9);
-    if constexpr (!studioBackdrop) {
+    if constexpr (!outdoorLandscape) {
         skybox.reserve(6);
         for (const char* face : {"front", "right", "back", "left", "bottom", "top"}) {
             const auto path = std::string(ASSET_PATH("textures/skybox/skybox_")) + face + ".png";
@@ -81,7 +81,7 @@ Scene::Scene(GLFWwindow* window)
     textured.setFloat("light_cutoff_inner", std::cos(glm::radians(62.5f)));
     textured.setFloat("light_cutoff_outer", std::cos(glm::radians(67.5f)));
 
-    if constexpr (studioBackdrop) glClearColor(0.031f, 0.044f, 0.068f, 1.0f);
+    textured.setBool("outdoorLight", outdoorLandscape);
     glEnable(GL_DEPTH_TEST);
     glFrontFace(GL_CW);
 #ifndef __EMSCRIPTEN__
@@ -130,8 +130,18 @@ void Scene::frame() {
     if (down(GLFW_KEY_C)) glDisable(GL_CULL_FACE);
     else glEnable(GL_CULL_FACE);
     cube.bind();
+#ifdef __EMSCRIPTEN__
+    const auto sun = glm::vec3(orientation * glm::vec4(Landscape::sunDirection, 0.0f));
+    const auto lightPosition = sun * 20.0f;
+    const auto lightDirection = -sun;
+    const auto lightProjection = glm::ortho(-8.5f, 8.5f, -8.5f, 8.5f, 0.5f, 36.0f);
+#else
+    const auto lightPosition = spotlightPosition;
+    const auto lightDirection = glm::normalize(-lightPosition);
+    const auto lightProjection = glm::perspective(glm::radians(90.0f), 1.0f, 1.0f, 20.0f);
+#endif
     const auto lightView = glm::lookAt(lightPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    const auto lightSpace = glm::perspective(glm::radians(90.0f), 1.0f, 1.0f, 20.0f) * lightView;
+    const auto lightSpace = lightProjection * lightView;
 
     shadow.useProgram();
     shadow.setMat4("light_view_proj_matrix", lightSpace);
@@ -147,43 +157,61 @@ void Scene::frame() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     const float aspect = static_cast<float>(width) / height;
     const auto projection = createProjectionMatrix(camera, aspect, orthographic);
+    const auto view = createViewMatrix(camera);
+#ifdef __EMSCRIPTEN__
+    landscape.draw(projection * view * orientation, width, height);
+    cube.bind();
+#endif
 
     textured.useProgram();
     textured.setMat4("projectionMatrix", projection);
-    textured.setMat4("viewMatrix", createViewMatrix(camera));
+    textured.setMat4("viewMatrix", view);
     textured.setMat4("light_view_proj_matrix", lightSpace);
     textured.setVec3("viewPos", camera.position);
     textured.setVec3("lightPos", lightPosition);
-    textured.setVec3("lightDir", glm::normalize(-lightPosition));
+    textured.setVec3("lightDir", lightDirection);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, shadowTexture);
     glActiveTexture(GL_TEXTURE0);
     drawGeometry(textured, false);
     drawBackdrop(textured);
-    drawGuides();
+    if constexpr (!outdoorLandscape) drawGuides();
 
     glBindVertexArray(0);
     glfwSwapBuffers(window);
 }
 
-void Scene::drawGeometry(const Shader& shader, bool shadowPass) {
+void Scene::drawPlatform(const Shader& shader, bool shadowPass) {
+    const float bottom = outdoorLandscape ? -0.42f : -0.01f;
+    const auto platform = glm::translate(orientation, {-5.0f, bottom, -5.0f});
+    shader.setMat4("worldMatrix", glm::scale(platform, {100.0f, -bottom * 10.0f, 100.0f}));
+
     if (!shadowPass) {
-        shader.setBool("drawTexture", texturedModels && !studioBackdrop);
-        shader.setFloat("ambientStrength", studioBackdrop ? 0.48f : 0.3f);
-        if constexpr (studioBackdrop) {
-            shader.setVec3("objectColor", {0.061f, 0.085f, 0.128f});
-        } else {
-            shader.setVec3("objectColor", texturedModels ? glm::vec3(1.0f) : glm::vec3(0.5f, 1.0f, 0.5f));
-            glBindTexture(GL_TEXTURE_2D, ground.getTextureID());
-        }
+        shader.setBool("drawTexture", texturedModels);
+        shader.setBool("stoneTiles", outdoorLandscape);
+        shader.setFloat("ambientStrength", outdoorLandscape ? 0.57f : 0.3f);
+        const glm::vec3 solidColor = outdoorLandscape ? glm::vec3(0.42f, 0.38f, 0.30f) :
+                                                        glm::vec3(0.5f, 1.0f, 0.5f);
+        shader.setVec3("objectColor", texturedModels ? glm::vec3(1.0f) : solidColor);
+        glBindTexture(GL_TEXTURE_2D, ground.getTextureID());
     }
-    const float groundHeight = studioBackdrop ? -0.02f : -0.01f;
-    const auto groundTransform = glm::translate(orientation, {-5.0f, groundHeight, -5.0f});
-    shader.setMat4("worldMatrix", glm::scale(groundTransform, {100.0f, 0.1f, 100.0f}));
     glDrawArrays(GL_TRIANGLES, 30, 6);
 
-    if (!shadowPass && studioBackdrop) {
+    if constexpr (outdoorLandscape) {
+        if (!shadowPass) {
+            shader.setBool("stoneTiles", false);
+            shader.setBool("drawTexture", false);
+            shader.setVec3("objectColor", {0.30f, 0.26f, 0.20f});
+        }
+        glDrawArrays(GL_TRIANGLES, 0, 30);
+    }
+}
+
+void Scene::drawGeometry(const Shader& shader, bool shadowPass) {
+    drawPlatform(shader, shadowPass);
+    if (!shadowPass) {
         shader.setBool("drawTexture", texturedModels);
-        shader.setFloat("ambientStrength", 0.3f);
+        shader.setFloat("ambientStrength", outdoorLandscape ? 0.63f : 0.3f);
     }
     for (std::size_t i = 0; i < letters.size(); ++i) {
         const auto& pose = letters[i];
@@ -220,7 +248,7 @@ void Scene::drawPuzzle(const Shader& shader, bool shadowPass) {
         axis[active->axis] = 1.0f;
         turningRoot = glm::rotate(root, puzzle.turnAngle(), axis);
     }
-    shader.setFloat("ambientStrength", 1.0f);
+    shader.setFloat("ambientStrength", outdoorLandscape ? 0.8f : 1.0f);
     for (const auto& cubie : puzzle.pieces()) {
         const auto& home = cubie.home;
         if (home == glm::ivec3(0)) {
@@ -264,10 +292,13 @@ void Scene::drawPuzzle(const Shader& shader, bool shadowPass) {
 
 void Scene::drawBackdrop(const Shader& shader) {
     shader.setVec3("objectColor", glm::vec3(1.0f));
-    shader.setBool("drawTexture", false);
     shader.setFloat("ambientStrength", 1.0f);
-    shader.setMat4("worldMatrix", glm::scale(glm::translate(orientation, lightPosition), glm::vec3(0.25f)));
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+    if constexpr (!outdoorLandscape) {
+        shader.setBool("drawTexture", false);
+        const auto light = glm::translate(orientation, spotlightPosition);
+        shader.setMat4("worldMatrix", glm::scale(light, glm::vec3(0.25f)));
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
 
     shader.setBool("drawTexture", true);
     const GLboolean culling = glIsEnabled(GL_CULL_FACE);
@@ -280,20 +311,16 @@ void Scene::drawBackdrop(const Shader& shader) {
     }
     if (culling) glEnable(GL_CULL_FACE);
 
-    const auto sky = glm::scale(glm::translate(identity, camera.position) * orientation, glm::vec3(50000.0f));
-    shader.setMat4("worldMatrix", glm::translate(sky, glm::vec3(-0.05f)));
-    glFrontFace(GL_CCW);
-    if constexpr (studioBackdrop) {
-        shader.setBool("drawStudioBackdrop", true);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        shader.setBool("drawStudioBackdrop", false);
-    } else {
+    if constexpr (!outdoorLandscape) {
+        const auto sky = glm::scale(glm::translate(identity, camera.position) * orientation, glm::vec3(50000.0f));
+        shader.setMat4("worldMatrix", glm::translate(sky, glm::vec3(-0.05f)));
+        glFrontFace(GL_CCW);
         for (int face = 0; face < 6; ++face) {
             glBindTexture(GL_TEXTURE_2D, skybox[face].getTextureID());
             glDrawArrays(GL_TRIANGLES, 6 * face, 6);
         }
+        glFrontFace(GL_CW);
     }
-    glFrontFace(GL_CW);
 }
 
 void Scene::drawGuides() {
@@ -301,13 +328,11 @@ void Scene::drawGuides() {
     textured.setBool("drawTexture", false);
     textured.setFloat("ambientStrength", 1.0f);
     textured.setMat4("worldMatrix", orientation);
-    const glm::vec3 desktopAxes[] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
-    const glm::vec3 studioAxes[] = {{0.53f, 0.27f, 0.32f}, {0.22f, 0.44f, 0.36f}, {0.25f, 0.38f, 0.58f}};
-    const auto& colors = studioBackdrop ? studioAxes : desktopAxes;
+    const glm::vec3 colors[] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     for (int axis = 0; axis < 3; ++axis) {
         textured.setVec3("objectColor", colors[axis]);
         glDrawArrays(GL_LINES, 2 * axis, 2);
     }
-    textured.setVec3("objectColor", studioBackdrop ? glm::vec3(0.082f, 0.114f, 0.165f) : glm::vec3(0.35f));
+    textured.setVec3("objectColor", glm::vec3(0.35f));
     glDrawArrays(GL_LINES, 6, 4 * (Mesh::gridDivisions + 1));
 }

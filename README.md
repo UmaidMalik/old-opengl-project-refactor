@@ -19,6 +19,8 @@ cmake --build build --config Release --target run
 
 Click a cube button to turn a slice, or focus the scene and press 6 to use the cube keys. Turns animate in the order entered.
 
+The browser scene places the original tiles in a grassy clearing surrounded by hills, pines, and a pond. A WebGL 2 shader traces the landscape, sunlight occlusion, and pond reflections. It shares depth with the rasterized models so the scene stays interactive.
+
 ### Local build
 
 Activate the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) in your shell. With Ninja and Python available, run the following commands.
@@ -49,6 +51,6 @@ Open [the scene on localhost](http://localhost:8000/opengl_project.html). The br
 | Left Alt | Randomize the selected letter's horizontal position |
 | `R`, Shift+`R`, Ctrl+Shift+`R` (desktop) or `F` (browser) | Reset the selected letter's position, size, or rotation |
 | `Home`, `0` | Reset the camera and scene orientation, or reset the timer |
-| `X`, `C` | Toggle letter textures (and ground textures on desktop), or disable face culling while held |
+| `X`, `C` | Toggle letter and tile textures, or disable face culling while held |
 | `E` / `V` | Perspective / orthographic view. `E` turns a slice when the cube is selected |
 | `B`, `N`, `M` | Fill, wireframe, or point rendering on desktop |
