@@ -130,6 +130,9 @@ void Scene::frame() {
 
     if (down(GLFW_KEY_C)) glDisable(GL_CULL_FACE);
     else glEnable(GL_CULL_FACE);
+#ifdef __EMSCRIPTEN__
+    landscape.stream(glm::vec3(glm::transpose(orientation) * glm::vec4(camera.position, 1.0f)));
+#endif
     cube.bind();
 #ifdef __EMSCRIPTEN__
     const auto sun = glm::vec3(orientation * glm::vec4(Landscape::sunDirection, 0.0f));
@@ -166,7 +169,7 @@ void Scene::frame() {
     glClear(GL_DEPTH_BUFFER_BIT);
     drawGeometry(shadow, true);
 #ifdef __EMSCRIPTEN__
-    landscape.drawShadows(shadow, orientation);
+    landscape.drawShadows(shadow, orientation, lightSpace, static_cast<float>(now));
 #endif
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -179,7 +182,7 @@ void Scene::frame() {
     landscape.drawSky(projection * view * orientation);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, shadowTexture);
-    landscape.draw(orientation, projection * view, lightSpace, camera.position);
+    landscape.draw(orientation, projection * view, lightSpace, camera.position, static_cast<float>(now));
     cube.bind();
 #endif
 

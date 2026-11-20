@@ -3,12 +3,19 @@
 
 #include <cmath>
 #include <cstddef>
+#include <algorithm>
+#include <vector>
 #include <glm/gtc/constants.hpp>
 
 namespace {
 
 constexpr float spacing = 0.75f;
-constexpr int halfGrid = 104;
+constexpr int quads = 32;
+constexpr int gridWidth = quads + 1;
+constexpr int gridVertices = gridWidth * gridWidth;
+constexpr float chunkSize = spacing * quads;
+constexpr int viewRadius = 3;
+constexpr float bladeRange = 32.0f;
 constexpr float cellSize = 5.0f;
 const glm::vec2 pondCenter(-1.0f, -16.0f);
 const glm::vec2 pondRadii(5.0f, 4.0f);
@@ -38,6 +45,8 @@ float terrain(glm::vec2 p) {
     const float clearing = glm::smoothstep(5.25f, 12.5f, glm::max(std::abs(p.x), std::abs(p.y)));
     float hills = 5.0f * noise(p * 0.083f + 6.2f) - 1.55f + noise(p * 0.24f + 14.7f);
     hills += glm::smoothstep(22.0f, 88.0f, glm::length(p)) * (3.0f + 9.0f * noise(p * 0.049f - 3.0f));
+    hills += 4.0f * (noise(p * 0.017f + 7.1f) - 0.5f)
+           * glm::smoothstep(25.0f, 90.0f, glm::length(p));
     const float height = -0.35f + clearing * hills;
     return glm::mix(-1.6f, height, glm::smoothstep(0.69f, 1.27f, Landscape::pondRadius(p)));
 }
@@ -54,7 +63,9 @@ Vertex grass(glm::vec2 p) {
                        * (1.0f - glm::smoothstep(1.2f, 1.3f, Landscape::pondRadius(p)));
     color = glm::mix(color, glm::vec3(0.46f, 0.40f, 0.25f), sand);
     // Bake a little valley and slope shading into the vertex colors.
-    color *= glm::mix(0.76f, 1.0f, normal.y) * glm::mix(0.86f, 1.0f, noise(p * 0.115f));
+    const float broadShade = terrain(p + glm::vec2(1.7f, -1.4f)) - height;
+    const float ambientOcclusion = 1.0f - 0.22f * glm::smoothstep(0.12f, 1.35f, broadShade);
+    color *= ambientOcclusion * glm::mix(0.79f, 1.0f, normal.y);
     return {{p.x, height, p.y}, normal, color};
 }
 
@@ -83,7 +94,7 @@ void branchMesh(std::vector<Vertex>& vertices, glm::vec3 base, float height, flo
 
 }  // namespace
 
-const glm::vec3 Landscape::sunDirection = glm::normalize(glm::vec3(-0.57f, 0.44f, -0.72f));
+const glm::vec3 Landscape::sunDirection = glm::normalize(glm::vec3(-0.61f, 0.50f, -0.65f));
 
 float Landscape::pondRadius(glm::vec2 point) {
     return glm::length((point - pondCenter) / pondRadii);
@@ -101,108 +112,276 @@ float Landscape::heightAt(glm::vec2 p) {
     return terrain(base + spacing) * (f.x + f.y - 1.0f) + b * (1.0f - f.y) + c * (1.0f - f.x);
 }
 
-Landscape::Landscape()
-    : surfaces(ASSET_PATH("shaders/landscape_vertex.glsl"), ASSET_PATH("shaders/landscape_fragment.glsl")),
-      sky(ASSET_PATH("shaders/fullscreen_vertex.glsl"), ASSET_PATH("shaders/landscape_sky.glsl")) {
-    std::vector<Vertex> vertices;
-    std::vector<GLuint> indices;
-    constexpr int gridWidth = halfGrid * 2 + 1;
-    vertices.reserve(gridWidth * gridWidth);
-    indices.reserve(6 * (gridWidth - 1) * (gridWidth - 1));
-    for (int z = -halfGrid; z <= halfGrid; ++z) {
-        for (int x = -halfGrid; x <= halfGrid; ++x) vertices.push_back(grass({x * spacing, z * spacing}));
-    }
-    for (int z = 0; z < gridWidth - 1; ++z) {
-        for (int x = 0; x < gridWidth - 1; ++x) {
-            const auto i = static_cast<GLuint>(z * gridWidth + x);
-            indices.insert(indices.end(), {i, i + 1, i + gridWidth,
-                                          i + 1, i + gridWidth + 1, i + gridWidth});
-        }
-    }
-    terrainVertices = static_cast<GLsizei>(vertices.size());
-    terrainIndices = static_cast<GLsizei>(indices.size());
 
-    for (int z = -15; z < 15; ++z) {
-        for (int x = -15; x < 15; ++x) {
-            const glm::vec2 cell(x, z);
-            if (hash(cell + 27.3f) <= 0.40f) continue;
-            const glm::vec2 jitter(hash(cell + 17.0f) - 0.5f, hash(cell - 63.0f) - 0.5f);
-            const auto center = (cell + 0.5f) * cellSize + jitter * 1.8f;
-            if (glm::max(std::abs(center.x), std::abs(center.y)) < 7.6f || pondRadius(center) < 1.21f) continue;
-            const float scale = glm::mix(0.68f, 1.27f, hash(cell - 3.0f));
-            forest.push_back({center, scale});
-            const glm::vec3 base(center.x, heightAt(center) - 0.06f, center.y);
-            const float h = 4.1f * scale;
-            const auto needles = glm::mix(glm::vec3(0.09f, 0.22f, 0.12f),
-                                          glm::vec3(0.22f, 0.36f, 0.17f), hash(cell + 7.1f));
-            branchMesh(vertices, base, h * 0.65f, 0.12f * scale, 0.09f * scale,
-                       {0.29f, 0.19f, 0.105f}, 6);
-            branchMesh(vertices, base + glm::vec3(0, h * 0.19f, 0), h * 0.55f, 1.25f * scale, 0, needles, 8);
-            branchMesh(vertices, base + glm::vec3(0, h * 0.36f, 0), h * 0.48f, 1.01f * scale, 0, needles, 8);
-            branchMesh(vertices, base + glm::vec3(0, h * 0.53f, 0), h * 0.47f, 0.73f * scale, 0, needles, 8);
-        }
-    }
-    solidCount = static_cast<GLsizei>(vertices.size());
+namespace {
 
-    // Terrain depth naturally clips the pond surface at the shoreline.
-    for (glm::vec2 p : {glm::vec2(-1, -1), {1, -1}, {-1, 1}, {1, -1}, {1, 1}, {-1, 1}}) {
-        const auto corner = pondCenter + p * pondRadii * 1.18f;
-        vertices.push_back({{corner.x, waterLevel, corner.y}, {0, 1, 0}, {0.10f, 0.26f, 0.28f}, 1.0f});
-    }
-    totalCount = static_cast<GLsizei>(vertices.size());
+struct Tree {
+    glm::vec2 center;
+    float scale;
+};
 
+Tree treeAt(glm::vec2 cell) {
+    const glm::vec2 jitter(hash(cell + 17.0f) - 0.5f, hash(cell - 63.0f) - 0.5f);
+    const auto center = (cell + 0.5f) * cellSize + jitter * 1.8f;
+    if (hash(cell + 27.3f) <= 0.40f ||
+        glm::max(std::abs(center.x), std::abs(center.y)) < 7.6f ||
+        Landscape::pondRadius(center) < 1.21f) return {center, 0.0f};
+    const float density = noise(center * 0.046f + 21.0f);
+    if (glm::length(center) > 28.0f && density < 0.25f) return {center, 0.0f};
+    return {center, glm::mix(0.68f, 1.44f, hash(cell - 3.0f))};
+}
+
+void uploadSurface(GLuint& vao, GLuint& buffer, const std::vector<Vertex>& vertices) {
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
-    glGenBuffers(1, &indexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
     const std::size_t offsets[] = {offsetof(Vertex, position), offsetof(Vertex, normal),
-                                   offsetof(Vertex, color), offsetof(Vertex, water)};
+                                  offsetof(Vertex, color), offsetof(Vertex, water)};
     for (GLuint i = 0; i < 4; ++i) {
         glEnableVertexAttribArray(i);
         glVertexAttribPointer(i, i == 3 ? 1 : 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                               reinterpret_cast<void*>(offsets[i]));
     }
+}
+
+bool inFrustum(const glm::mat4& clip, glm::vec2 origin) {
+    const glm::mat4 rows = glm::transpose(clip);
+    const glm::vec3 center(origin.x + chunkSize * 0.5f, 12.0f, origin.y + chunkSize * 0.5f);
+    const glm::vec3 halfSize(chunkSize * 0.5f + 2.0f, 16.0f, chunkSize * 0.5f + 2.0f);
+    for (int axis = 0; axis < 3; ++axis) {
+        for (const auto& plane : {rows[3] + rows[axis], rows[3] - rows[axis]}) {
+            const glm::vec3 n(plane);
+            if (glm::dot(n, center) + plane.w + glm::dot(glm::abs(n), halfSize) < 0.0f) return false;
+        }
+    }
+    return true;
+}
+
+}  // namespace
+
+bool Landscape::hitsTree(glm::vec2 point, float playerRadius) {
+    const auto cell = glm::floor(point / cellSize);
+    for (int z = -1; z <= 1; ++z) {
+        for (int x = -1; x <= 1; ++x) {
+            const auto tree = treeAt(cell + glm::vec2(x, z));
+            if (tree.scale == 0.0f) continue;
+            const auto offset = point - tree.center;
+            const float radius = playerRadius + tree.scale * 0.14f;
+            if (glm::dot(offset, offset) < radius * radius) return true;
+        }
+    }
+    return false;
+}
+
+Landscape::Landscape()
+    : surfaces(ASSET_PATH("shaders/landscape_vertex.glsl"), ASSET_PATH("shaders/landscape_fragment.glsl")),
+      sky(ASSET_PATH("shaders/fullscreen_vertex.glsl"), ASSET_PATH("shaders/landscape_sky.glsl")),
+      foliage(ASSET_PATH("shaders/grass_vertex.glsl"), ASSET_PATH("shaders/grass_fragment.glsl")),
+      foliageShadow(ASSET_PATH("shaders/grass_vertex.glsl"), ASSET_PATH("shaders/shadow_fragment.glsl")) {
+    std::vector<GLuint> indices;
+    indices.reserve(6 * quads * quads);
+    for (int z = 0; z < quads; ++z) {
+        for (int x = 0; x < quads; ++x) {
+            const auto i = static_cast<GLuint>(z * gridWidth + x);
+            indices.insert(indices.end(), {i, i + 1, i + gridWidth,
+                                          i + 1, i + gridWidth + 1, i + gridWidth});
+        }
+    }
+
+    std::vector<Vertex> water;
+    for (glm::vec2 p : {glm::vec2(-1, -1), {1, -1}, {-1, 1}, {1, -1}, {1, 1}, {-1, 1}}) {
+        const auto corner = pondCenter + p * pondRadii * 1.18f;
+        water.push_back({{corner.x, waterLevel, corner.y}, {0, 1, 0}, {0.10f, 0.26f, 0.28f}, 1.0f});
+    }
+    uploadSurface(waterVao, waterBuffer, water);
+    terrainIndices = static_cast<GLsizei>(indices.size());
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    const glm::vec2 blade[] = {
+        {-1, 0}, {1, 0}, {-0.66f, 0.48f}, {1, 0}, {0.66f, 0.48f}, {-0.66f, 0.48f},
+        {-0.66f, 0.48f}, {0.66f, 0.48f}, {0, 1}
+    };
+    std::vector<glm::vec2> tuft;
+    for (int stalk = 0; stalk < 3; ++stalk) {
+        tuft.insert(tuft.end(), blade, blade + 9);
+    }
+    glGenBuffers(1, &bladeBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, bladeBuffer);
+    glBufferData(GL_ARRAY_BUFFER, tuft.size() * sizeof(glm::vec2), tuft.data(), GL_STATIC_DRAW);
     surfaces.useProgram();
     surfaces.setInt("shadowMap", 1);
+    foliage.useProgram();
+    foliage.setInt("shadowMap", 1);
     sky.useProgram();
     sky.setVec3("sunDirection", sunDirection);
 }
 
-Landscape::~Landscape() {
+Landscape::Chunk::~Chunk() {
     glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &indexBuffer);
+    glDeleteVertexArrays(1, &grassVao);
     glDeleteBuffers(1, &buffer);
+    glDeleteBuffers(1, &grassBuffer);
+}
+
+Landscape::~Landscape() {
+    chunks.clear();
+    glDeleteVertexArrays(1, &waterVao);
+    glDeleteBuffers(1, &waterBuffer);
+    glDeleteBuffers(1, &indexBuffer);
+    glDeleteBuffers(1, &bladeBuffer);
+}
+
+void Landscape::buildChunk(Chunk& chunk, Key key) {
+    const glm::vec2 origin(key.first * chunkSize, key.second * chunkSize);
+    std::vector<Vertex> vertices;
+    vertices.reserve(gridVertices + 3600);
+    for (int z = 0; z < gridWidth; ++z) {
+        for (int x = 0; x < gridWidth; ++x) vertices.push_back(grass(origin + glm::vec2(x, z) * spacing));
+    }
+    const auto firstCell = glm::ivec2(glm::floor(origin / cellSize));
+    const auto lastCell = glm::ivec2(glm::floor((origin + chunkSize) / cellSize));
+    for (int z = firstCell.y; z <= lastCell.y; ++z) {
+        for (int x = firstCell.x; x <= lastCell.x; ++x) {
+            const glm::vec2 cell(x, z);
+            const auto tree = treeAt(cell);
+            if (tree.scale == 0.0f || glm::any(glm::lessThan(tree.center, origin)) ||
+                glm::any(glm::greaterThanEqual(tree.center, origin + chunkSize))) continue;
+            const glm::vec3 base(tree.center.x, heightAt(tree.center) - 0.06f, tree.center.y);
+            const float h = 4.1f * tree.scale;
+            const auto needles = glm::mix(glm::vec3(0.074f, 0.19f, 0.10f),
+                                          glm::vec3(0.20f, 0.32f, 0.14f), hash(cell + 7.1f));
+            branchMesh(vertices, base, h * 0.65f, 0.12f * tree.scale, 0.09f * tree.scale, {0.29f, 0.19f, 0.105f}, 7);
+            branchMesh(vertices, base + glm::vec3(0, h * 0.19f, 0), h * 0.55f, 1.25f * tree.scale, 0, needles, 9);
+            branchMesh(vertices, base + glm::vec3(0, h * 0.36f, 0), h * 0.48f, 1.01f * tree.scale, 0, needles, 9);
+            branchMesh(vertices, base + glm::vec3(0, h * 0.53f, 0), h * 0.47f, 0.73f * tree.scale, 0, needles, 9);
+        }
+    }
+    chunk.treeVertices = static_cast<GLsizei>(vertices.size()) - gridVertices;
+    uploadSurface(chunk.vao, chunk.buffer, vertices);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+    constexpr int scatter = 48;
+    std::vector<glm::vec4> clumps;
+    clumps.reserve(scatter * scatter);
+    for (int z = 0; z < scatter; ++z) {
+        for (int x = 0; x < scatter; ++x) {
+            const auto cell = glm::vec2(key.first * scatter + x, key.second * scatter + z);
+            const float seed = hash(cell + 41.3f);
+            const glm::vec2 jitter(hash(cell + 4.0f), hash(cell + 19.0f));
+            const auto p = (cell + jitter * 0.88f + 0.06f) * (chunkSize / scatter);
+            const float patch = noise(p * 0.31f + 8.0f);
+            if (seed > glm::mix(0.34f, 0.98f, patch) ||
+                glm::max(std::abs(p.x), std::abs(p.y)) < 5.24f) continue;
+            const float altitude = heightAt(p);
+            if (pondRadius(p) < 1.24f && altitude < waterLevel + 0.12f) continue;
+            clumps.emplace_back(p.x, altitude - 0.012f, p.y, seed);
+        }
+    }
+    chunk.clumps = static_cast<GLsizei>(clumps.size());
+    glGenVertexArrays(1, &chunk.grassVao);
+    glBindVertexArray(chunk.grassVao);
+    glGenBuffers(1, &chunk.grassBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, chunk.grassBuffer);
+    glBufferData(GL_ARRAY_BUFFER, clumps.size() * sizeof(glm::vec4), clumps.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), nullptr);
+    glVertexAttribDivisor(0, 1);
+    glBindBuffer(GL_ARRAY_BUFFER, bladeBuffer);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), nullptr);
+}
+
+void Landscape::stream(glm::vec3 cameraInTerrain) {
+    terrainCamera = cameraInTerrain;
+    const Key next(static_cast<int>(std::floor(cameraInTerrain.x / chunkSize)),
+                   static_cast<int>(std::floor(cameraInTerrain.z / chunkSize)));
+    if (!chunks.empty() && center == next) return;
+    center = next;
+    for (auto it = chunks.begin(); it != chunks.end(); ) {
+        const auto [x, z] = it->first;
+        if (std::abs(x - center.first) > viewRadius || std::abs(z - center.second) > viewRadius) {
+            it = chunks.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    for (int z = center.second - viewRadius; z <= center.second + viewRadius; ++z) {
+        for (int x = center.first - viewRadius; x <= center.first + viewRadius; ++x) {
+            auto [it, created] = chunks.try_emplace(Key{x, z});
+            if (created) buildChunk(it->second, it->first);
+        }
+    }
+}
+
+void Landscape::drawChunks(const glm::mat4& terrainToClip) const {
+    for (const auto& [key, chunk] : chunks) {
+        const glm::vec2 origin(key.first * chunkSize, key.second * chunkSize);
+        if (!inFrustum(terrainToClip, origin)) continue;
+        glBindVertexArray(chunk.vao);
+        glDrawElements(GL_TRIANGLES, terrainIndices, GL_UNSIGNED_INT, nullptr);
+        glDrawArrays(GL_TRIANGLES, gridVertices, chunk.treeVertices);
+    }
+}
+
+void Landscape::drawGrass(Shader& shader, const glm::mat4& world, const glm::mat4& viewProjection,
+                          const glm::mat4& lightSpace, float time, float range) {
+    const auto clip = viewProjection * world;
+    shader.useProgram();
+    shader.setMat4("worldMatrix", world);
+    shader.setMat4("viewProjection", viewProjection);
+    shader.setMat4("lightSpace", lightSpace);
+    shader.setVec3("terrainCamera", terrainCamera);
+    shader.setVec3("sunDirection", glm::vec3(world * glm::vec4(sunDirection, 0.0f)));
+    shader.setFloat("time", time);
+    shader.setFloat("drawRange", range);
+    const auto culling = glIsEnabled(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
+    const glm::vec2 camera(terrainCamera.x, terrainCamera.z);
+    for (const auto& [key, chunk] : chunks) {
+        const glm::vec2 origin(key.first * chunkSize, key.second * chunkSize);
+        const auto nearest = glm::clamp(camera, origin, origin + chunkSize);
+        const auto offset = camera - nearest;
+        if (glm::dot(offset, offset) > range * range || !inFrustum(clip, origin)) continue;
+        glBindVertexArray(chunk.grassVao);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 27, chunk.clumps);
+    }
+    if (culling) glEnable(GL_CULL_FACE);
 }
 
 void Landscape::drawSky(const glm::mat4& terrainToClip) {
     sky.useProgram();
     sky.setMat4("clipToTerrain", glm::inverse(terrainToClip));
-    glBindVertexArray(vao);
+    glBindVertexArray(waterVao);
     glDepthMask(GL_FALSE);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glDepthMask(GL_TRUE);
 }
 
 void Landscape::draw(const glm::mat4& world, const glm::mat4& viewProjection,
-                     const glm::mat4& lightSpace, const glm::vec3& camera) {
+                     const glm::mat4& lightSpace, const glm::vec3& camera, float time) {
     surfaces.useProgram();
     surfaces.setMat4("worldMatrix", world);
     surfaces.setMat4("viewProjection", viewProjection);
     surfaces.setMat4("lightSpace", lightSpace);
     surfaces.setVec3("viewPos", camera);
+    surfaces.setVec3("terrainCamera", terrainCamera);
+    surfaces.setVec3("terrainSun", sunDirection);
+    surfaces.setFloat("time", time);
     surfaces.setVec3("sunDirection", glm::vec3(world * glm::vec4(sunDirection, 0.0f)));
-    glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, terrainIndices, GL_UNSIGNED_INT, nullptr);
-    glDrawArrays(GL_TRIANGLES, terrainVertices, totalCount - terrainVertices);
+    drawChunks(viewProjection * world);
+    glBindVertexArray(waterVao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    drawGrass(foliage, world, viewProjection, lightSpace, time, bladeRange);
 }
 
-void Landscape::drawShadows(const Shader& shadow, const glm::mat4& world) const {
+void Landscape::drawShadows(const Shader& shadow, const glm::mat4& world, const glm::mat4& lightSpace,
+                            float time) {
     shadow.setMat4("worldMatrix", world);
-    glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, terrainIndices, GL_UNSIGNED_INT, nullptr);
-    glDrawArrays(GL_TRIANGLES, terrainVertices, solidCount - terrainVertices);
+    drawChunks(lightSpace * world);
+    drawGrass(foliageShadow, world, lightSpace, lightSpace, time, 15.0f);
 }

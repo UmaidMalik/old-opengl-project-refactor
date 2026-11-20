@@ -4,6 +4,11 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <emscripten.h>
+
+EM_JS(void, reportPlatformDistance, (int meters), {
+    Module['platformDistance'](meters);
+});
 
 namespace {
 
@@ -113,17 +118,18 @@ void Scene::updateWalking(float elapsed) {
         return floor;
     }, [&](glm::vec3 feet) {
         const glm::vec2 p(feet.x, feet.z);
-        if (glm::max(std::abs(p.x), std::abs(p.y)) >= Landscape::walkLimit) return true;
         if (Landscape::pondRadius(p) < 1.18f && walkFloor(p) < Landscape::waterLevel - 0.36f) return true;
-        for (const auto& tree : landscape.trees()) {
-            const auto difference = tree.center - p;
-            const float radius = Walker::radius + tree.scale * 0.14f;
-            if (glm::dot(difference, difference) < radius * radius) return true;
-        }
+        if (Landscape::hitsTree(p, Walker::radius)) return true;
         for (const auto& object : objects) {
             if (hitsBox(feet, object)) return true;
         }
         return false;
     });
     camera.position = walker.eye();
+    const auto feet = walker.position();
+    const int meters = static_cast<int>(glm::length(glm::vec2(feet.x, feet.z)));
+    if (meters != lastPlatformDistance) {
+        lastPlatformDistance = meters;
+        reportPlatformDistance(meters);
+    }
 }

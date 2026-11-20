@@ -3,6 +3,9 @@
 uniform highp sampler2D shadowMap;
 uniform vec3 sunDirection;
 uniform vec3 viewPos;
+uniform vec3 terrainCamera;
+uniform vec3 terrainSun;
+uniform float time;
 in vec3 surfacePos;
 in vec3 worldPos;
 in vec3 surfaceNormal;
@@ -15,14 +18,17 @@ float shadowVisibility(vec3 normal) {
     vec3 p = shadowPos.xyz / shadowPos.w * 0.5 + 0.5;
     if (any(lessThan(p, vec3(0.0))) || any(greaterThan(p, vec3(1.0)))) return 1.0;
     float bias = max(0.00055 * (1.0 - dot(normal, sunDirection)), 0.00016);
-    vec2 texel = 1.0 / vec2(textureSize(shadowMap, 0));
+    float blocker = texture(shadowMap, p.xy).r;
+    float spread = clamp(0.9 + (p.z - blocker) * 110.0, 0.9, 2.6);
+    vec2 texel = spread / vec2(textureSize(shadowMap, 0));
     float sum = 0.0;
     for (int y = -1; y <= 1; ++y) {
         for (int x = -1; x <= 1; ++x) {
             sum += step(p.z - bias, texture(shadowMap, p.xy + vec2(x,y) * texel).r);
         }
     }
-    return sum / 9.0;
+    float edge = min(min(p.x, p.y), min(1.0 - p.x, 1.0 - p.y));
+    return mix(1.0, sum / 9.0, smoothstep(0.0, 0.11, edge));
 }
 
 float grain(vec2 p) {
@@ -41,19 +47,29 @@ void main() {
         vec2 p = surfacePos.xz;
         vec2 pond = (p - vec2(-1.0, -16.0)) / vec2(5.0, 4.0);
         if (dot(pond, pond) > 1.18 * 1.18) discard;
-        float ripples = sin(p.x * 9.0 + p.y * 12.0) * cos(p.x * 6.0 - p.y * 9.0);
-        float fresnel = pow(1.0 - clamp(dot(normal, towardEye), 0.0, 1.0), 4.0);
-        float glint = pow(max(dot(reflect(-sunDirection, normal), towardEye), 0.0), 56.0);
-        color = mix(color, vec3(0.42, 0.64, 0.71), fresnel) + ripples * 0.024
-                + glint * vec3(0.43, 0.38, 0.22);
+        float waveX = sin(p.x * 5.0 + p.y * 8.0 + time * 1.2);
+        float waveZ = cos(p.x * 7.0 - p.y * 4.0 - time);
+        vec3 rippleNormal = normalize(normal + vec3(waveX * 0.026, 0.0, waveZ * 0.026));
+        float fresnel = pow(1.0 - clamp(dot(rippleNormal, towardEye), 0.0, 1.0), 4.0);
+        float glint = pow(max(dot(reflect(-sunDirection, rippleNormal), towardEye), 0.0), 90.0);
+        color = mix(color, vec3(0.44, 0.66, 0.77), fresnel) + waveX * waveZ * 0.008
+                + glint * vec3(0.80, 0.65, 0.38) * shadowVisibility(normal);
     } else {
         vec3 texturePoint = surfacePos * 23.0;
         vec3 footprint = fwidth(texturePoint);
         float detail = 1.0 - smoothstep(0.26, 0.98, max(footprint.x, max(footprint.y, footprint.z)));
         float textureDetail = grain(floor(texturePoint.xz) + floor(texturePoint.y) * vec2(5.13, 7.31));
-        color *= (1.0 + (textureDetail - 0.5) * detail * 0.42)
-               * (vec3(0.64, 0.72, 0.76) + sun * vec3(0.69, 0.59, 0.43));
+        float skyExposure = normal.y * 0.5 + 0.5;
+        vec3 indirect = mix(vec3(0.31, 0.28, 0.19), vec3(0.57, 0.69, 0.83), skyExposure);
+        vec3 direct = sun * vec3(0.92, 0.75, 0.50);
+        color *= (1.0 + (textureDetail - 0.5) * detail * 0.35) * (indirect + direct);
     }
-    float haze = 1.0 - exp(-distance * 0.006 - distance * distance * 0.00011);
-    FragResult = vec4(mix(color, vec3(0.62, 0.73, 0.75), haze), 1.0);
+    vec3 ray = normalize(surfacePos - terrainCamera);
+    vec3 air = mix(vec3(0.62, 0.73, 0.75), vec3(0.24, 0.50, 0.76), smoothstep(0.0, 0.48, ray.y));
+    float glow = max(dot(ray, terrainSun), 0.0);
+    air += vec3(0.29, 0.16, 0.05) * pow(glow, 22.0);
+    air = mix(air, vec3(1.0, 0.92, 0.68), smoothstep(0.9994, 0.99975, glow));
+    float haze = max(1.0 - exp(-distance * 0.004 - distance * distance * 0.000085),
+                     smoothstep(53.0, 71.0, distance));
+    FragResult = vec4(mix(color, air, haze), 1.0);
 }

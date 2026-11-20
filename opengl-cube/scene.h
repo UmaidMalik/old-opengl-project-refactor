@@ -76,6 +76,7 @@ private:
     glm::vec2 inspectOrbit{0.0f};
     bool inspectOrthographic = false;
     bool walking = false;
+    int lastPlatformDistance = -1;
 #endif
     std::vector<Texture> digits;
     std::array<std::vector<Texture>, 6> stickers;
