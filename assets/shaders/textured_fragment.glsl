@@ -36,7 +36,8 @@ float visibility(vec3 normal, vec3 towardLight)
             visibilitySum += step(position.z - bias, texture(shadowMap, position.xy + vec2(x, y) * texel).r);
         }
     }
-    return visibilitySum / 9.0;
+    float edge = min(min(position.x, position.y), min(1.0 - position.x, 1.0 - position.y));
+    return mix(1.0, visibilitySum / 9.0, smoothstep(0.0, 0.11, edge));
 }
 
 void main()
@@ -45,11 +46,15 @@ void main()
     if (dot(Normal, Normal) > 0.0 && ambientStrength < 1.0) {
         vec3 normal = normalize(Normal);
         vec3 towardLight = outdoorLight ? -lightDir : normalize(lightPos - FragPos);
-        float diffuse = (outdoorLight ? 0.55 : 2.9) * max(dot(normal, towardLight), 0.0);
+        if (outdoorLight) {
+            vec3 indirect = mix(vec3(0.62, 0.56, 0.42), vec3(0.89, 0.97, 1.1), normal.y * 0.5 + 0.5);
+            lighting *= indirect;
+        }
+        float diffuse = (outdoorLight ? 0.66 : 2.9) * max(dot(normal, towardLight), 0.0);
         vec3 reflected = reflect(-towardLight, normal);
         float specular = (outdoorLight ? 0.14 : 0.4) * pow(max(dot(reflected, normalize(viewPos - FragPos)), 0.0), 32.0);
         float cone = outdoorLight ? 1.0 : smoothstep(light_cutoff_outer, light_cutoff_inner, dot(-towardLight, lightDir));
-        vec3 directColor = outdoorLight ? vec3(1.0, 0.94, 0.81) : lightColor;
+        vec3 directColor = outdoorLight ? vec3(1.0, 0.88, 0.67) : lightColor;
         lighting += visibility(normal, towardLight) * cone * (diffuse + specular) * directColor;
     }
     vec4 surface = drawTexture ? texture(texture_1, vertexUV) : vec4(1.0);

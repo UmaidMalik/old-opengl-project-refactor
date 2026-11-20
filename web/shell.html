@@ -77,7 +77,7 @@
       border-color: var(--focus);
     }
 
-    #view-status {
+    #view-status, #platform-distance {
       color: var(--muted);
       font-size: .78rem;
     }
@@ -257,6 +257,7 @@
           <button id="walk-toggle" type="button" aria-pressed="false" disabled>Start walking</button>
           <button id="fullscreen-toggle" type="button" aria-pressed="false">Fullscreen</button>
           <span id="view-status" role="status"></span>
+          <span id="platform-distance" hidden></span>
         </div>
         <div class="viewport" id="viewport">
           <canvas id="canvas" width="1024" height="768" tabindex="0"
@@ -353,6 +354,7 @@
     const walkToggle = document.getElementById('walk-toggle');
     const fullscreenToggle = document.getElementById('fullscreen-toggle');
     const viewStatus = document.getElementById('view-status');
+    const platformDistance = document.getElementById('platform-distance');
     let ready = false;
     let walking = false;
 
@@ -390,6 +392,7 @@
     function toggleWalk() {
       if (!ready) return;
       walking = Boolean(Module._toggle_walk());
+      platformDistance.hidden = !walking;
       walkToggle.textContent = walking ? 'Stop walking' : 'Start walking';
       walkToggle.setAttribute('aria-pressed', String(walking));
       canvas.focus({preventScroll: true});
@@ -424,6 +427,9 @@
         walkToggle.disabled = false;
         statusPanel.hidden = true;
         resizeScene();
+      },
+      platformDistance(meters) {
+        platformDistance.textContent = meters + ' m from platform';
       },
       sceneFailed,
       onAbort() { sceneFailed(); },
