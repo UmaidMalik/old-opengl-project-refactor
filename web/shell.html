@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1018">
+  <title>OpenGL Letter Scene</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #edf1f8;
+      background: #0c1018;
+      --muted: #a8b3c6;
+      --border: #283246;
+      --surface: #131a27;
+      --focus: #9edaf9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at 24% 0%, #182337, #0c1018 56%);
+    }
+
+    main {
+      inline-size: min(100%, 88rem);
+      margin-inline: auto;
+      padding: clamp(1rem, 3vw, 2.75rem);
+    }
+
+    h1 {
+      margin: 0 0 1.25rem;
+      font-size: clamp(1.8rem, 4vw, 3.1rem);
+      line-height: 1.14;
+      letter-spacing: -0.045em;
+      font-weight: 650;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(19rem, 21rem);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    figure {
+      min-inline-size: 0;
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      background: var(--surface);
+      box-shadow: 0 1.2rem 3.5rem #05070d66;
+    }
+
+    figure:focus-within { border-color: #6386a3; }
+
+    .viewport {
+      position: relative;
+      background: #101725;
+    }
+
+    canvas {
+      display: block;
+      inline-size: 100%;
+      block-size: auto;
+      aspect-ratio: 4 / 3;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    canvas:focus-visible { outline-offset: -3px; }
+
+    #status {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      gap: .65rem;
+      padding: 1rem;
+      background: #101725;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    #status[hidden] { display: none; }
+    progress { inline-size: 11rem; margin-inline: auto; accent-color: var(--focus); }
+
+    figcaption {
+      padding: .8rem 1rem;
+      color: var(--muted);
+      font-size: .83rem;
+    }
+
+    .controls {
+      display: grid;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      overflow: hidden;
+    }
+
+    .controls > h2 {
+      margin: 0;
+      padding: 1.1rem 1.125rem .45rem;
+      font-size: 1.15rem;
+      letter-spacing: -.02em;
+    }
+
+    .controls > section, .controls > details {
+      min-inline-size: 0;
+      padding: 1rem 1.125rem;
+    }
+
+    .controls > section + section, .controls > details {
+      border-block-start: 1px solid var(--border);
+    }
+
+    h3, summary {
+      margin: 0;
+      font-size: .93rem;
+      font-weight: 650;
+    }
+
+    summary { cursor: pointer; }
+    summary::marker { color: var(--muted); }
+
+    .hint, dt {
+      color: var(--muted);
+      font-size: .8rem;
+      line-height: 1.45;
+    }
+
+    .hint { margin: .45rem 0 .65rem; }
+
+    fieldset {
+      min-inline-size: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    table {
+      inline-size: 100%;
+      border-spacing: 0 .32rem;
+      table-layout: fixed;
+    }
+
+    table th:first-child { inline-size: 2rem; }
+    th { text-align: start; }
+    thead th { color: var(--muted); font-size: .7rem; font-weight: 500; }
+    tbody th { color: var(--axis); font-family: ui-monospace, monospace; font-size: .8rem; }
+    .axis-x { --axis: #f0ab9b; }
+    .axis-y { --axis: #90d2bb; }
+    .axis-z { --axis: #a7c8f8; }
+
+    .key-group {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .23rem;
+      padding-inline-end: .34rem;
+    }
+
+    td:last-child .key-group { padding-inline-end: 0; }
+
+    button, kbd {
+      font: 600 .76rem ui-monospace, monospace;
+      border-radius: .37rem;
+      background: #1c2739;
+      border: 1px solid #35435a;
+    }
+
+    button {
+      min-block-size: 2.35rem;
+      padding: 0;
+      color: var(--axis);
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:hover:not(:disabled) { background: #2c3c54; border-color: var(--axis); }
+    button:active:not(:disabled) { background: #3b4d65; }
+    button:disabled { opacity: .5; cursor: default; }
+
+    kbd {
+      display: inline-block;
+      padding: .15rem .31rem;
+      color: #e3ecfa;
+      white-space: nowrap;
+    }
+
+    dl { display: grid; gap: .5rem; margin: .75rem 0 0; }
+    dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .25rem .6rem; }
+    dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem; margin: 0; }
+
+    @media (max-width: 52rem) {
+      .workspace { grid-template-columns: minmax(0, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>OpenGL Letter Scene</h1>
+    <div class="workspace">
+      <figure>
+        <div class="viewport">
+          <canvas id="canvas" width="1024" height="768" tabindex="0"
+                  aria-label="Interactive 3D scene" aria-describedby="scene-keyboard"></canvas>
+          <div id="status" role="status">
+            <span id="status-message">Loading scene&hellip;</span>
+            <progress id="progress" aria-label="Scene download progress" hidden></progress>
+          </div>
+        </div>
+        <figcaption id="scene-keyboard">Focus the scene to use the keyboard. Press <kbd>Tab</kbd> to leave it.</figcaption>
+      </figure>
+
+      <aside class="controls" aria-labelledby="controls-title">
+        <h2 id="controls-title">Controls</h2>
+        <section aria-labelledby="cube-title">
+          <h3 id="cube-title">Picture cube</h3>
+          <p class="hint">Click a turn button, or focus the scene and press <kbd>6</kbd> to use the keys below.</p>
+          <fieldset id="cube-moves" aria-labelledby="cube-title" disabled>
+            <table aria-label="Cube slice turns">
+              <thead>
+                <tr><th scope="col">Axis</th><th scope="col">Turn</th><th scope="col">Reverse</th></tr>
+              </thead>
+              <tbody>
+              <tr class="axis-x">
+                <th scope="row">X</th>
+                <td><div class="key-group"><button type="button" data-key="Q" aria-label="Q: Turn X slice 1">Q</button><button type="button" data-key="W" aria-label="W: Turn X slice 2">W</button><button type="button" data-key="E" aria-label="E: Turn X slice 3">E</button></div></td>
+                <td><div class="key-group"><button type="button" data-key="A" aria-label="A: Reverse X slice 1">A</button><button type="button" data-key="S" aria-label="S: Reverse X slice 2">S</button><button type="button" data-key="D" aria-label="D: Reverse X slice 3">D</button></div></td>
+              </tr>
+              <tr class="axis-y">
+                <th scope="row">Y</th>
+                <td><div class="key-group"><button type="button" data-key="R" aria-label="R: Turn Y slice 1">R</button><button type="button" data-key="T" aria-label="T: Turn Y slice 2">T</button><button type="button" data-key="Y" aria-label="Y: Turn Y slice 3">Y</button></div></td>
+                <td><div class="key-group"><button type="button" data-key="F" aria-label="F: Reverse Y slice 1">F</button><button type="button" data-key="G" aria-label="G: Reverse Y slice 2">G</button><button type="button" data-key="H" aria-label="H: Reverse Y slice 3">H</button></div></td>
+              </tr>
+              <tr class="axis-z">
+                <th scope="row">Z</th>
+                <td><div class="key-group"><button type="button" data-key="U" aria-label="U: Turn Z slice 1">U</button><button type="button" data-key="I" aria-label="I: Turn Z slice 2">I</button><button type="button" data-key="O" aria-label="O: Turn Z slice 3">O</button></div></td>
+                <td><div class="key-group"><button type="button" data-key="J" aria-label="J: Reverse Z slice 1">J</button><button type="button" data-key="K" aria-label="K: Reverse Z slice 2">K</button><button type="button" data-key="L" aria-label="L: Reverse Z slice 3">L</button></div></td>
+              </tr>
+              </tbody>
+            </table>
+          </fieldset>
+        </section>
+
+        <section aria-labelledby="camera-title">
+          <h3 id="camera-title">Camera &amp; scene</h3>
+          <dl>
+            <div><dt>Rotate scene</dt><dd><kbd>&#8592;</kbd><kbd>&#8593;</kbd><kbd>&#8595;</kbd><kbd>&#8594;</kbd></dd></div>
+            <div><dt>Look / zoom</dt><dd><kbd>Right drag</kbd><kbd>Right + wheel</kbd></dd></div>
+            <div><dt>Fly while holding right mouse</dt><dd><kbd>W A S D</kbd><kbd>Space</kbd><kbd>Z</kbd></dd></div>
+            <div><dt>Reset camera and rotation</dt><dd><kbd>Home</kbd></dd></div>
+            <div><dt>Perspective / orthographic</dt><dd><kbd>E</kbd><kbd>V</kbd></dd></div>
+            <div><dt>Model textures / back faces</dt><dd><kbd>X</kbd><kbd>Hold C</kbd></dd></div>
+            <div><dt>Reset timer</dt><dd><kbd>0</kbd></dd></div>
+          </dl>
+          <p class="hint"><kbd>E</kbd> turns a slice while the cube is selected.</p>
+        </section>
+
+        <details>
+          <summary>Letter model controls</summary>
+          <dl>
+            <div><dt>Select a model</dt><dd><kbd>1</kbd>&ndash;<kbd>5</kbd></dd></div>
+            <div><dt>Move</dt><dd><kbd>W A S D</kbd><kbd>Space</kbd><kbd>Z</kbd></dd></div>
+            <div><dt>Scale</dt><dd><kbd>U</kbd><kbd>J</kbd></dd></div>
+            <div><dt>Rotate X / Y / Z</dt><dd><kbd>T Y</kbd><kbd>G H</kbd><kbd>B N</kbd></dd></div>
+            <div><dt>Stepped movement / boost</dt><dd><kbd>P</kbd><kbd>Shift</kbd></dd></div>
+            <div><dt>Randomize position</dt><dd><kbd>Left Alt</kbd></dd></div>
+            <div><dt>Reset position</dt><dd><kbd>R</kbd></dd></div>
+            <div><dt>Reset size / rotation</dt><dd><kbd>Shift+R</kbd><kbd>F</kbd></dd></div>
+          </dl>
+        </details>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const moves = document.getElementById('cube-moves');
+    const statusPanel = document.getElementById('status');
+    const statusMessage = document.getElementById('status-message');
+    const progress = document.getElementById('progress');
+
+    function sceneFailed(message = 'The scene could not start. Reload in a browser with WebGL 2 support.') {
+      moves.disabled = true;
+      progress.hidden = true;
+      statusMessage.textContent = message;
+      statusPanel.hidden = false;
+    }
+
+    var Module = {
+      canvas,
+      setStatus(text) {
+        if (text === '') return;
+        const match = text.match(/\((\d+)\/(\d+)\)$/);
+        if (match) {
+          progress.max = Number(match[2]);
+          progress.value = Number(match[1]);
+          progress.hidden = false;
+        }
+      },
+      sceneReady() {
+        moves.disabled = false;
+        statusPanel.hidden = true;
+      },
+      sceneFailed,
+      onAbort() { sceneFailed(); },
+    };
+
+    moves.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-key]');
+      if (button && !moves.disabled) Module._turn_cube(button.dataset.key.charCodeAt(0));
+    });
+    canvas.addEventListener('pointerdown', () => canvas.focus({preventScroll: true}));
+    canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+    for (const type of ['wheel', 'mousewheel']) {
+      canvas.addEventListener(type, (event) => {
+        // Only send the wheel to GLFW during right-button zoom.
+        if (!(event.buttons & 2)) event.stopImmediatePropagation();
+      }, {capture: true, passive: true});
+    }
+    canvas.addEventListener('webglcontextlost', () => sceneFailed('WebGL was interrupted. Reload to continue.'));
+
+    // GLFW blocks Tab globally. Let the browser handle Tab before GLFW sees it.
+    const scrollKeys = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', ' ']);
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Tab') {
+        event.stopImmediatePropagation();
+        return;
+      }
+      if (document.activeElement === canvas && scrollKeys.has(event.key)) event.preventDefault();
+    }, true);
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

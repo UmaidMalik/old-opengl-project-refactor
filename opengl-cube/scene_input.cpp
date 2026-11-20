@@ -5,7 +5,23 @@
 #include <cstdlib>
 #include <glm/gtc/matrix_transform.hpp>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+EM_JS(int, browserSceneHasFocus, (), {
+    return document.activeElement === Module.canvas;
+});
+#endif
+
 namespace {
+
+bool sceneHasKeyboardFocus() {
+#ifdef __EMSCRIPTEN__
+    return browserSceneHasFocus();
+#else
+    return true;
+#endif
+}
 
 constexpr int puzzleSelection = 5;
 constexpr int turnKeys[2][9] = {
@@ -16,11 +32,11 @@ constexpr int turnKeys[2][9] = {
 }  // namespace
 
 bool Scene::down(int key) const {
-    return glfwGetKey(window, key) == GLFW_PRESS;
+    return glfwGetKey(window, key) == GLFW_PRESS && sceneHasKeyboardFocus();
 }
 
 void Scene::onKey(int key) {
-    if (key < 0 || key > GLFW_KEY_LAST) {
+    if (key < 0 || key > GLFW_KEY_LAST || !sceneHasKeyboardFocus()) {
         return;
     }
     pressed[key] = true;
@@ -30,17 +46,21 @@ void Scene::onKey(int key) {
     if (key >= GLFW_KEY_1 && key <= GLFW_KEY_6) {
         selection = key - GLFW_KEY_1;
     }
-    if (selection != puzzleSelection) {
-        return;
+    if (selection == puzzleSelection) {
+        queuePuzzleKey(key);
     }
+}
 
+void Scene::queuePuzzleKey(int key) {
     for (int row = 0; row < 2; ++row) {
         for (int index = 0; index < 9; ++index) {
             if (key == turnKeys[row][index]) {
                 const int axis = index / 3;
                 // Keep the original layer order and direction on each axis.
                 const int sign = axis == 0 ? 1 : -1;
-                puzzle.turn(axis, sign * (index % 3 - 1), row == 0 ? -1 : 1);
+                selection = puzzleSelection;
+                puzzle.queueTurn({axis, sign * (index % 3 - 1), row == 0 ? -1 : 1});
+                return;
             }
         }
     }
@@ -62,16 +82,18 @@ void Scene::setMouseLook(bool enabled) {
 }
 
 void Scene::updateInput(float elapsed) {
+#ifdef __EMSCRIPTEN__
+    if (pressed[GLFW_KEY_P]) stepped = !stepped;
+#else
     if (pressed[GLFW_KEY_ESCAPE]) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
-#ifndef __EMSCRIPTEN__
+    if (pressed[GLFW_KEY_TAB]) stepped = !stepped;
     if (pressed[GLFW_KEY_B]) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     if (pressed[GLFW_KEY_N]) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     if (pressed[GLFW_KEY_M]) glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
 #endif
     if (pressed[GLFW_KEY_0]) timerStart = lastFrameTime;
-    if (pressed[GLFW_KEY_TAB]) stepped = !stepped;
     if (pressed[GLFW_KEY_X]) texturedModels = !texturedModels;
     if (pressed[GLFW_KEY_V]) orthographic = true;
     if (pressed[GLFW_KEY_E] && selection != puzzleSelection) orthographic = false;
@@ -99,10 +121,7 @@ void Scene::updateInput(float elapsed) {
     orbit.x += step * (pressed[GLFW_KEY_RIGHT] - pressed[GLFW_KEY_LEFT]);
     orbit.y += step * (pressed[GLFW_KEY_UP] - pressed[GLFW_KEY_DOWN]);
     if (pressed[GLFW_KEY_HOME]) {
-        camera.position = {0.0f, 4.0f, 3.5f};
-        camera.horizontalAngle = 90.0f;
-        camera.verticalAngle = 0.0f;
-        updateCameraDirection(camera);
+        camera = initialCamera();
         orbit = glm::vec2(0.0f);
     }
     orientation = glm::rotate(glm::mat4(1.0f), -orbit.x, {1, 0, 0});
@@ -134,6 +153,9 @@ void Scene::updateLetter(LetterPose& pose, float elapsed, bool fast) {
         const auto& origin = letterDesigns[selection].position;
         pose.offset = {randomCoordinate() - origin.x, 0.0f, randomCoordinate() - origin.z};
     }
+#ifdef __EMSCRIPTEN__
+    if (pressed[GLFW_KEY_F]) pose.rotation = glm::vec3(0.0f);
+#endif
     if (down(GLFW_KEY_R)) {
         if (!fast) pose.offset = glm::vec3(0.0f);
         else if (down(GLFW_KEY_LEFT_CONTROL)) pose.rotation = glm::vec3(0.0f);

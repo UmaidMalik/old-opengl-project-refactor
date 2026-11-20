@@ -17,6 +17,8 @@ cmake --build build --config Release --target run
 
 [Play the live WebAssembly build](https://umaidmalik.github.io/old-opengl-project-refactor/). GitHub Actions builds the browser target for pull requests and deploys it to GitHub Pages on pushes to `main`.
 
+Click a cube button to turn a slice, or focus the scene and press 6 to use the cube keys. Turns animate in the order entered.
+
 ### Local build
 
 Activate the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) in your shell. With Ninja and Python available, run the following commands.
@@ -43,10 +45,10 @@ Open [the scene on localhost](http://localhost:8000/opengl_project.html). The br
 | `W A S D`, Space, `Z` | Move the selected letter |
 | `U` / `J` | Scale the selected letter |
 | `T` / `Y`, `G` / `H`, `B` / `N` | Rotate the selected letter around X, Y, or Z |
-| Tab / Shift | Toggle stepped letter movement / speed up continuous movement |
+| Tab (desktop) or P (browser) / Shift | Toggle stepped letter movement / speed up continuous movement |
 | Left Alt | Randomize the selected letter's horizontal position |
-| `R`, Shift+`R`, Ctrl+Shift+`R` | Reset the selected letter's position, size, or rotation |
+| `R`, Shift+`R`, Ctrl+Shift+`R` (desktop) or `F` (browser) | Reset the selected letter's position, size, or rotation |
 | `Home`, `0` | Reset the camera and scene orientation, or reset the timer |
-| `X`, `C` | Toggle letter and ground textures, or disable face culling while held |
+| `X`, `C` | Toggle letter textures (and ground textures on desktop), or disable face culling while held |
 | `E` / `V` | Perspective / orthographic view. `E` turns a slice when the cube is selected |
 | `B`, `N`, `M` | Fill, wireframe, or point rendering on desktop |

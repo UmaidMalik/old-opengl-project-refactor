@@ -20,6 +20,7 @@ public:
     Scene& operator=(const Scene&) = delete;
 
     void frame();
+    void queuePuzzleKey(int key);
 
 private:
     struct LetterPose {
