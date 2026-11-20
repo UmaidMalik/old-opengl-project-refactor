@@ -15,6 +15,10 @@ cmake --build build --config Release --target run
 
 ## Browser
 
+[Play the live WebAssembly build](https://umaidmalik.github.io/old-opengl-project-refactor/). GitHub Actions builds the browser target for pull requests and deploys it to GitHub Pages on pushes to `main`.
+
+### Local build
+
 Activate the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) in your shell. With Ninja and Python available, run the following commands.
 
 ```sh
