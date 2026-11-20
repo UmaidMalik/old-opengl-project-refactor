@@ -19,7 +19,9 @@ cmake --build build --config Release --target run
 
 Click a cube button to turn a slice, or focus the scene and press 6 to use the cube keys. Turns animate in the order entered.
 
-The browser scene places the original tiles in a grassy clearing surrounded by hills, pines, and a pond. A WebGL 2 shader traces the landscape, sunlight occlusion, and pond reflections. It shares depth with the rasterized models so the scene stays interactive.
+The browser scene uses rasterized hills, pines, and a pond around the checker-tile platform. Terrain colors include baked ambient shading, and the sun casts filtered real-time shadow maps over the landscape and models.
+
+Choose **Start walking** (or press **M** with the scene focused) for first-person movement. Use **WASD** to walk, **Shift** to sprint, **Space** to jump, and the mouse or arrow keys to look. Press **Esc** to release the mouse and **Home** to return to the platform. The **Fullscreen** button expands the scene with its controls.
 
 ### Local build
 

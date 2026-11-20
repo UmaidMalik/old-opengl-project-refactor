@@ -8,6 +8,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include "landscape.h"
+#include "walker.h"
 #endif
 
 #define GLFW_INCLUDE_NONE
@@ -15,6 +16,8 @@
 
 #include <array>
 #include <vector>
+
+struct LetterPart;
 
 class Scene {
 public:
@@ -25,6 +28,10 @@ public:
 
     void frame();
     void queuePuzzleKey(int key);
+#ifdef __EMSCRIPTEN__
+    bool toggleWalking();
+    void walkLook(float dx, float dy);
+#endif
 
 private:
     struct LetterPose {
@@ -40,6 +47,13 @@ private:
     void onScroll(double offset);
     void setMouseLook(bool enabled);
     bool down(int key) const;
+
+    glm::mat4 letterModel(std::size_t index) const;
+    static glm::mat4 letterPartMatrix(const glm::mat4& model, const LetterPart& part);
+#ifdef __EMSCRIPTEN__
+    void resetWalker();
+    void updateWalking(float elapsed);
+#endif
 
     void drawPlatform(const Shader& shader, bool shadowPass);
     void drawGeometry(const Shader& shader, bool shadowPass);
@@ -57,6 +71,11 @@ private:
     Texture metal;
 #ifdef __EMSCRIPTEN__
     Landscape landscape;
+    Walker walker;
+    CameraState inspectCamera{};
+    glm::vec2 inspectOrbit{0.0f};
+    bool inspectOrthographic = false;
+    bool walking = false;
 #endif
     std::vector<Texture> digits;
     std::array<std::vector<Texture>, 6> stickers;

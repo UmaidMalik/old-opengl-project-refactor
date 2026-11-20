@@ -40,6 +40,9 @@ void Scene::onKey(int key) {
         return;
     }
     pressed[key] = true;
+#ifdef __EMSCRIPTEN__
+    if (walking) return;
+#endif
     if (looking) {
         return;
     }
@@ -73,6 +76,9 @@ void Scene::onScroll(double offset) {
 }
 
 void Scene::setMouseLook(bool enabled) {
+#ifdef __EMSCRIPTEN__
+    if (walking) return;
+#endif
     looking = enabled;
     if (looking) {
         selection = -1;
@@ -95,6 +101,13 @@ void Scene::updateInput(float elapsed) {
 #endif
     if (pressed[GLFW_KEY_0]) timerStart = lastFrameTime;
     if (pressed[GLFW_KEY_X]) texturedModels = !texturedModels;
+#ifdef __EMSCRIPTEN__
+    if (walking) {
+        updateWalking(elapsed);
+        pressed.fill(false);
+        return;
+    }
+#endif
     if (pressed[GLFW_KEY_V]) orthographic = true;
     if (pressed[GLFW_KEY_E] && selection != puzzleSelection) orthographic = false;
 
