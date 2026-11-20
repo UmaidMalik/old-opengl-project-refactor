@@ -7,7 +7,7 @@ CameraState initialCamera()
 {
 #ifdef __EMSCRIPTEN__
     CameraState camera{{1.4f, 4.2f, 4.5f}, {}, {0.0f, 1.0f, 0.0f},
-                       115.0f, -15.0f, 1.0f, 4.0f, 62.0f};
+                       115.0f, -12.0f, 1.0f, 4.0f, 64.0f};
 #else
     CameraState camera{{0.0f, 4.0f, 3.5f}, {}, {0.0f, 1.0f, 0.0f},
                        90.0f, 0.0f, 1.0f, 4.0f, 90.0f};

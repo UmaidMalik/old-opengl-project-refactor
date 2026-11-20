@@ -74,14 +74,20 @@ void branchMesh(std::vector<Vertex>& vertices, glm::vec3 base, float height, flo
     const float slope = (radius - topRadius) / height;
     const glm::vec3 tip = base + glm::vec3(0, height, 0);
     for (int side = 0; side < sides; ++side) {
-        const float angle = glm::two_pi<float>() * side / sides;
-        const float next = glm::two_pi<float>() * (side + 1) / sides;
+        const float twist = topRadius == 0.0f ? base.y * 4.3f : 0.0f;
+        const float angle = glm::two_pi<float>() * side / sides + twist;
+        const float next = glm::two_pi<float>() * (side + 1) / sides + twist;
         const glm::vec3 radial(std::cos(angle), 0, std::sin(angle));
         const glm::vec3 nextRadial(std::cos(next), 0, std::sin(next));
         const auto n = glm::normalize(radial + glm::vec3(0, slope, 0));
         const auto nn = glm::normalize(nextRadial + glm::vec3(0, slope, 0));
-        const Vertex a{base + radius * radial, n, color * 0.82f};
-        const Vertex b{base + radius * nextRadial, nn, color * 0.82f};
+        const auto skirt = [&](glm::vec3 direction) {
+            if (topRadius > 0.0f) return radius * direction;
+            const float branch = hash(glm::vec2(base.x, base.z) + glm::vec2(direction.x, direction.z) * 7.0f);
+            return radius * (direction * glm::mix(0.78f, 1.13f, branch) + glm::vec3(0, branch * 0.14f, 0));
+        };
+        const Vertex a{base + skirt(radial), n, color * (0.68f + 0.24f * std::abs(radial.x))};
+        const Vertex b{base + skirt(nextRadial), nn, color * (0.68f + 0.24f * std::abs(nextRadial.x))};
         const Vertex c{tip + topRadius * radial, n, color};
         const Vertex d{tip + topRadius * nextRadial, nn, color};
         vertices.insert(vertices.end(), {a, b, c});
@@ -94,7 +100,7 @@ void branchMesh(std::vector<Vertex>& vertices, glm::vec3 base, float height, flo
 
 }  // namespace
 
-const glm::vec3 Landscape::sunDirection = glm::normalize(glm::vec3(-0.61f, 0.50f, -0.65f));
+const glm::vec3 Landscape::sunDirection = glm::normalize(glm::vec3(-0.61f, 0.27f, -0.65f));
 
 float Landscape::pondRadius(glm::vec2 point) {
     return glm::length((point - pondCenter) / pondRadii);
@@ -149,7 +155,7 @@ void uploadSurface(GLuint& vao, GLuint& buffer, const std::vector<Vertex>& verti
 bool inFrustum(const glm::mat4& clip, glm::vec2 origin) {
     const glm::mat4 rows = glm::transpose(clip);
     const glm::vec3 center(origin.x + chunkSize * 0.5f, 12.0f, origin.y + chunkSize * 0.5f);
-    const glm::vec3 halfSize(chunkSize * 0.5f + 2.0f, 16.0f, chunkSize * 0.5f + 2.0f);
+    const glm::vec3 halfSize(chunkSize * 0.5f + 3.0f, 16.0f, chunkSize * 0.5f + 3.0f);
     for (int axis = 0; axis < 3; ++axis) {
         for (const auto& plane : {rows[3] + rows[axis], rows[3] - rows[axis]}) {
             const glm::vec3 n(plane);
@@ -177,7 +183,6 @@ bool Landscape::hitsTree(glm::vec2 point, float playerRadius) {
 
 Landscape::Landscape()
     : surfaces(ASSET_PATH("shaders/landscape_vertex.glsl"), ASSET_PATH("shaders/landscape_fragment.glsl")),
-      sky(ASSET_PATH("shaders/fullscreen_vertex.glsl"), ASSET_PATH("shaders/landscape_sky.glsl")),
       foliage(ASSET_PATH("shaders/grass_vertex.glsl"), ASSET_PATH("shaders/grass_fragment.glsl")),
       foliageShadow(ASSET_PATH("shaders/grass_vertex.glsl"), ASSET_PATH("shaders/shadow_fragment.glsl")) {
     std::vector<GLuint> indices;
@@ -216,8 +221,8 @@ Landscape::Landscape()
     surfaces.setInt("shadowMap", 1);
     foliage.useProgram();
     foliage.setInt("shadowMap", 1);
-    sky.useProgram();
-    sky.setVec3("sunDirection", sunDirection);
+    surfaces.useProgram();
+    surfaces.setInt("skyMap", OutdoorSky::environmentUnit);
 }
 
 Landscape::Chunk::~Chunk() {
@@ -252,12 +257,25 @@ void Landscape::buildChunk(Chunk& chunk, Key key) {
                 glm::any(glm::greaterThanEqual(tree.center, origin + chunkSize))) continue;
             const glm::vec3 base(tree.center.x, heightAt(tree.center) - 0.06f, tree.center.y);
             const float h = 4.1f * tree.scale;
-            const auto needles = glm::mix(glm::vec3(0.074f, 0.19f, 0.10f),
-                                          glm::vec3(0.20f, 0.32f, 0.14f), hash(cell + 7.1f));
+            const auto needles = glm::mix(glm::vec3(0.095f, 0.17f, 0.117f),
+                                          glm::vec3(0.20f, 0.285f, 0.158f), hash(cell + 7.1f));
             branchMesh(vertices, base, h * 0.65f, 0.12f * tree.scale, 0.09f * tree.scale, {0.29f, 0.19f, 0.105f}, 7);
-            branchMesh(vertices, base + glm::vec3(0, h * 0.19f, 0), h * 0.55f, 1.25f * tree.scale, 0, needles, 9);
-            branchMesh(vertices, base + glm::vec3(0, h * 0.36f, 0), h * 0.48f, 1.01f * tree.scale, 0, needles, 9);
-            branchMesh(vertices, base + glm::vec3(0, h * 0.53f, 0), h * 0.47f, 0.73f * tree.scale, 0, needles, 9);
+            branchMesh(vertices, base + glm::vec3(0, h * 0.20f, 0), h * 0.54f, 1.17f * tree.scale, 0, needles, 11);
+            branchMesh(vertices, base + glm::vec3(0.09f, h * 0.34f, 0), h * 0.48f, 1.04f * tree.scale, 0, needles, 11);
+            branchMesh(vertices, base + glm::vec3(0, h * 0.49f, -0.07f), h * 0.40f, 0.80f * tree.scale, 0, needles, 11);
+            branchMesh(vertices, base + glm::vec3(0.1f, h * 0.65f, 0), h * 0.35f, 0.57f * tree.scale, 0, needles, 10);
+            const float heading = hash(cell + 63.0f) * glm::two_pi<float>();
+            for (int bough = 0; bough < 5; ++bough) {
+                const float detail = hash(cell + static_cast<float>(bough) * 7.8f + 14.4f);
+                const float angle = heading + bough * 2.39996f;
+                const float reach = tree.scale * glm::mix(0.65f, 0.98f, detail);
+                const glm::vec3 offset(std::cos(angle) * reach,
+                                       h * glm::mix(0.18f, 0.39f, detail),
+                                       std::sin(angle) * reach);
+                branchMesh(vertices, base + offset, h * glm::mix(0.12f, 0.20f, detail),
+                           tree.scale * glm::mix(0.28f, 0.46f, detail), 0,
+                           needles * glm::mix(0.84f, 1.07f, detail), 6);
+            }
         }
     }
     chunk.treeVertices = static_cast<GLsizei>(vertices.size()) - gridVertices;
@@ -338,6 +356,8 @@ void Landscape::drawGrass(Shader& shader, const glm::mat4& world, const glm::mat
     shader.setVec3("terrainCamera", terrainCamera);
     shader.setVec3("sunDirection", glm::vec3(world * glm::vec4(sunDirection, 0.0f)));
     shader.setFloat("time", time);
+    shader.setFloat("skyTime", time);
+    shader.setVec3("terrainSun", sunDirection);
     shader.setFloat("drawRange", range);
     const auto culling = glIsEnabled(GL_CULL_FACE);
     glDisable(GL_CULL_FACE);
@@ -353,13 +373,8 @@ void Landscape::drawGrass(Shader& shader, const glm::mat4& world, const glm::mat
     if (culling) glEnable(GL_CULL_FACE);
 }
 
-void Landscape::drawSky(const glm::mat4& terrainToClip) {
-    sky.useProgram();
-    sky.setMat4("clipToTerrain", glm::inverse(terrainToClip));
-    glBindVertexArray(waterVao);
-    glDepthMask(GL_FALSE);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-    glDepthMask(GL_TRUE);
+void Landscape::drawSky(const glm::mat4& terrainToClip, float time) const {
+    sky.draw(terrainToClip, sunDirection, time);
 }
 
 void Landscape::draw(const glm::mat4& world, const glm::mat4& viewProjection,
@@ -372,6 +387,7 @@ void Landscape::draw(const glm::mat4& world, const glm::mat4& viewProjection,
     surfaces.setVec3("terrainCamera", terrainCamera);
     surfaces.setVec3("terrainSun", sunDirection);
     surfaces.setFloat("time", time);
+    surfaces.setFloat("skyTime", time);
     surfaces.setVec3("sunDirection", glm::vec3(world * glm::vec4(sunDirection, 0.0f)));
     drawChunks(viewProjection * world);
     glBindVertexArray(waterVao);

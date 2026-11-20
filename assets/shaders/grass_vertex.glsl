@@ -13,6 +13,7 @@ out vec3 bladeNormal;
 out float bladeHeight;
 out float variation;
 out float distanceToCamera;
+out vec3 terrainRoot;
 
 void main() {
     int stalk = gl_VertexID / 9;
@@ -37,4 +38,5 @@ void main() {
     bladeHeight = t;
     variation = seed;
     distanceToCamera = distance;
+    terrainRoot = clump.xyz;
 }

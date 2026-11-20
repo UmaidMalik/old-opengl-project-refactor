@@ -1,10 +1,11 @@
 #version 330 core
+#include "weather.glsl"
 
 uniform highp sampler2D shadowMap;
 uniform vec3 sunDirection;
 uniform vec3 viewPos;
 uniform vec3 terrainCamera;
-uniform vec3 terrainSun;
+uniform samplerCube skyMap;
 uniform float time;
 in vec3 surfacePos;
 in vec3 worldPos;
@@ -41,34 +42,37 @@ void main() {
     vec3 normal = normalize(surfaceNormal);
     float distance = length(viewPos - worldPos);
     vec3 towardEye = normalize(viewPos - worldPos);
-    float sun = max(dot(normal, sunDirection), 0.0) * shadowVisibility(normal);
+    float cloudLight = daylight(surfacePos);
+    float sun = max(dot(normal, sunDirection), 0.0) * shadowVisibility(normal) * cloudLight;
     vec3 color = bakedColor;
     if (water > 0.5) {
         vec2 p = surfacePos.xz;
         vec2 pond = (p - vec2(-1.0, -16.0)) / vec2(5.0, 4.0);
         if (dot(pond, pond) > 1.18 * 1.18) discard;
-        float waveX = sin(p.x * 5.0 + p.y * 8.0 + time * 1.2);
-        float waveZ = cos(p.x * 7.0 - p.y * 4.0 - time);
+        float waves = sin(dot(p, vec2(3.1, 4.8)) + time * 1.2);
+        float swell = cos(dot(p, vec2(0.83, 2.9)) - time * 0.88);
+        float waveX = 0.64 * waves + 0.36 * sin(dot(p, vec2(7.3, -3.4)) + time * 1.8);
+        float waveZ = 0.53 * swell + 0.47 * cos(dot(p, vec2(5.2, -6.5)) - time);
         vec3 rippleNormal = normalize(normal + vec3(waveX * 0.026, 0.0, waveZ * 0.026));
         float fresnel = pow(1.0 - clamp(dot(rippleNormal, towardEye), 0.0, 1.0), 4.0);
-        float glint = pow(max(dot(reflect(-sunDirection, rippleNormal), towardEye), 0.0), 90.0);
-        color = mix(color, vec3(0.44, 0.66, 0.77), fresnel) + waveX * waveZ * 0.008
-                + glint * vec3(0.80, 0.65, 0.38) * shadowVisibility(normal);
+        float glint = pow(max(dot(reflect(-sunDirection, rippleNormal), towardEye), 0.0), 155.0);
+        vec3 terrainRay = normalize(surfacePos - terrainCamera);
+        vec3 lakeNormal = normalize(vec3(waveX * 0.026, 1.0, waveZ * 0.026));
+        vec3 reflectedSky = textureLod(skyMap, reflect(terrainRay, lakeNormal), 2.1).rgb;
+        color = mix(color, reflectedSky, 0.16 + fresnel * 0.73) + waveX * waveZ * 0.004
+                + glint * vec3(0.96, 0.88, 0.75) * shadowVisibility(normal) * cloudLight;
     } else {
         vec3 texturePoint = surfacePos * 23.0;
         vec3 footprint = fwidth(texturePoint);
         float detail = 1.0 - smoothstep(0.26, 0.98, max(footprint.x, max(footprint.y, footprint.z)));
         float textureDetail = grain(floor(texturePoint.xz) + floor(texturePoint.y) * vec2(5.13, 7.31));
         float skyExposure = normal.y * 0.5 + 0.5;
-        vec3 indirect = mix(vec3(0.31, 0.28, 0.19), vec3(0.57, 0.69, 0.83), skyExposure);
-        vec3 direct = sun * vec3(0.92, 0.75, 0.50);
+        vec3 indirect = mix(vec3(0.46, 0.43, 0.37), vec3(0.66, 0.73, 0.81), skyExposure);
+        vec3 direct = sun * vec3(0.91, 0.83, 0.69);
         color *= (1.0 + (textureDetail - 0.5) * detail * 0.35) * (indirect + direct);
     }
     vec3 ray = normalize(surfacePos - terrainCamera);
-    vec3 air = mix(vec3(0.62, 0.73, 0.75), vec3(0.24, 0.50, 0.76), smoothstep(0.0, 0.48, ray.y));
-    float glow = max(dot(ray, terrainSun), 0.0);
-    air += vec3(0.29, 0.16, 0.05) * pow(glow, 22.0);
-    air = mix(air, vec3(1.0, 0.92, 0.68), smoothstep(0.9994, 0.99975, glow));
+    vec3 air = textureLod(skyMap, ray, 1.0).rgb;
     float haze = max(1.0 - exp(-distance * 0.004 - distance * distance * 0.000085),
                      smoothstep(53.0, 71.0, distance));
     FragResult = vec4(mix(color, air, haze), 1.0);

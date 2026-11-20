@@ -1,5 +1,6 @@
 #pragma once
 
+#include "outdoor_sky.h"
 #include "shader.h"
 
 #include <map>
@@ -19,7 +20,7 @@ public:
     Landscape& operator=(const Landscape&) = delete;
 
     void stream(glm::vec3 cameraInTerrain);
-    void drawSky(const glm::mat4& terrainToClip);
+    void drawSky(const glm::mat4& terrainToClip, float time) const;
     void draw(const glm::mat4& world, const glm::mat4& viewProjection, const glm::mat4& lightSpace,
               const glm::vec3& camera, float time);
     void drawShadows(const Shader& shadow, const glm::mat4& world, const glm::mat4& lightSpace,
@@ -48,7 +49,7 @@ private:
                    const glm::mat4& lightSpace, float time, float range);
 
     Shader surfaces;
-    Shader sky;
+    OutdoorSky sky;
     Shader foliage;
     Shader foliageShadow;
     GLuint waterVao = 0;

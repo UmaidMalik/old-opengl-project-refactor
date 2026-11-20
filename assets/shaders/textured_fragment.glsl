@@ -1,4 +1,5 @@
 #version 330 core
+#include "weather.glsl"
 
 uniform vec3 lightColor;
 uniform vec3 lightPos;
@@ -13,6 +14,7 @@ uniform float light_cutoff_inner;
 uniform bool drawTexture;
 uniform bool outdoorLight;
 uniform bool stoneTiles;
+uniform mat4 terrainFromWorld;
 
 in vec3 FragPos;
 in vec4 FragPosLightSpace;
@@ -54,13 +56,17 @@ void main()
         vec3 reflected = reflect(-towardLight, normal);
         float specular = (outdoorLight ? 0.14 : 0.4) * pow(max(dot(reflected, normalize(viewPos - FragPos)), 0.0), 32.0);
         float cone = outdoorLight ? 1.0 : smoothstep(light_cutoff_outer, light_cutoff_inner, dot(-towardLight, lightDir));
-        vec3 directColor = outdoorLight ? vec3(1.0, 0.88, 0.67) : lightColor;
-        lighting += visibility(normal, towardLight) * cone * (diffuse + specular) * directColor;
+        vec3 directColor = outdoorLight ? vec3(1.0, 0.94, 0.84) : lightColor;
+        float weather = outdoorLight ? daylight((terrainFromWorld * vec4(FragPos, 1.0)).xyz) : 1.0;
+        lighting += visibility(normal, towardLight) * weather * cone * (diffuse + specular) * directColor;
     }
     vec4 surface = drawTexture ? texture(texture_1, vertexUV) : vec4(1.0);
     if (stoneTiles && drawTexture) {
         float tone = dot(surface.rgb, vec3(0.2126, 0.7152, 0.0722));
-        surface.rgb = mix(vec3(0.28, 0.25, 0.20), vec3(0.62, 0.58, 0.49), tone);
+        vec2 local = (terrainFromWorld * vec4(FragPos, 1.0)).xz;
+        float patina = weatherNoise(local * 2.7) * 0.67 + weatherNoise(local * 12.0) * 0.33;
+        surface.rgb = mix(vec3(0.29, 0.28, 0.25), vec3(0.61, 0.59, 0.53), tone)
+                    * mix(0.79, 1.16, patina);
     }
     FragResult = surface * vec4(lighting * objectColor, 1.0);
 }

@@ -19,7 +19,7 @@ cmake --build build --config Release --target run
 
 Click a cube button to turn a slice, or focus the scene and press 6 to use the cube keys. Turns animate in the order entered.
 
-The browser streams procedural terrain and pines as you walk, with no fixed exploration fence. Nearby grass uses GPU-instanced blades with wind animation and distance-based fading. Baked ambient shading and filtered live sunlight cover the landscape, grass, tiled platform, and models.
+The browser streams procedural terrain and pines as you walk, with no fixed exploration fence. Nearby grass uses GPU-instanced blades with wind animation and distance-based fading. Baked ambient shading and filtered live sunlight cover the landscape, grass, tiled platform, and models. The browser projects a photographic sky panorama into a mipmapped cubemap. A separate moving cloud layer softens sunlight on the ground, and the pond reflects the cubemap.
 
 Choose **Start walking** (or press **M** with the scene focused) for first-person movement. Use **WASD** to walk, **Shift** to sprint, **Space** to jump, and the mouse or arrow keys to look. Press **Esc** to release the mouse and **Home** to return to the platform. The **Fullscreen** button expands the scene with its controls.
 

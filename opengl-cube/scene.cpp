@@ -179,7 +179,7 @@ void Scene::frame() {
     const auto projection = createProjectionMatrix(camera, aspect, orthographic);
     const auto view = createViewMatrix(camera);
 #ifdef __EMSCRIPTEN__
-    landscape.drawSky(projection * view * orientation);
+    landscape.drawSky(projection * view * orientation, static_cast<float>(now));
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, shadowTexture);
     landscape.draw(orientation, projection * view, lightSpace, camera.position, static_cast<float>(now));
@@ -193,6 +193,11 @@ void Scene::frame() {
     textured.setVec3("viewPos", camera.position);
     textured.setVec3("lightPos", lightPosition);
     textured.setVec3("lightDir", lightDirection);
+#ifdef __EMSCRIPTEN__
+    textured.setMat4("terrainFromWorld", glm::transpose(orientation));
+    textured.setVec3("terrainSun", Landscape::sunDirection);
+    textured.setFloat("skyTime", static_cast<float>(now));
+#endif
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, shadowTexture);
     glActiveTexture(GL_TEXTURE0);
