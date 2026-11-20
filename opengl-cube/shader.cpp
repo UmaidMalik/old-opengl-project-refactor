@@ -1,6 +1,7 @@
 #include "shader.h"
 
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -8,14 +9,32 @@
 
 namespace {
 
-GLuint compile(GLenum stage, const char* path) {
+std::string readShader(const std::filesystem::path& path) {
     std::ifstream file(path);
     if (!file) {
-        throw std::runtime_error(std::string("Could not open shader: ") + path);
+        throw std::runtime_error("Could not open shader: " + path.string());
     }
     std::ostringstream contents;
     contents << file.rdbuf();
-    auto source = contents.str();
+    return contents.str();
+}
+
+GLuint compile(GLenum stage, const char* path) {
+    constexpr const char* includePrefix = "#include \"";
+    std::istringstream input(readShader(path));
+    std::ostringstream expanded;
+    for (std::string line; std::getline(input, line); ) {
+        if (line.rfind(includePrefix, 0) == 0) {
+            const auto begin = std::char_traits<char>::length(includePrefix);
+            const auto end = line.find('"', begin);
+            if (end == std::string::npos) throw std::runtime_error("Unclosed shader include.");
+            const auto include = std::filesystem::path(path).parent_path() / line.substr(begin, end - begin);
+            expanded << readShader(include) << '\n';
+        } else {
+            expanded << line << '\n';
+        }
+    }
+    auto source = expanded.str();
 #ifdef __EMSCRIPTEN__
     source.replace(0, source.find('\n'), "#version 300 es\nprecision highp float;\nprecision highp int;");
 #endif

@@ -26,6 +26,7 @@ endif()
 if(EMSCRIPTEN)
     target_sources(opengl_project PRIVATE
         opengl-cube/landscape.cpp
+        opengl-cube/outdoor_sky.cpp
         opengl-cube/scene_walk.cpp
         opengl-cube/walker.cpp
     )
